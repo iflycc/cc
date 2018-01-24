@@ -1,0 +1,193 @@
+1.分支
+    ☛ 是为了将修改记录的整体流程分叉保存。分叉后的分支不收其他分支的影响，所以在同一个数据库里可以同时进行多个修改。
+    ☛ 分叉的分支可以合并。
+
+2.master分支
+    ☛ 在数据库进行最初的提交后, Git会创建一个名为master的分支。因此之后的提交，在切换分支之前都会添加到master分支里。
+
+3.Merge分支
+    ☛ Merge分支是为了可以随时发布release（[rɪ'lis] 释放，发布）而创建的分支，它还能作为Topic分支的源分支使用。保持分支稳定的状态是很重要的。如果要进行更改，通常先创建Topic分支，而针对该分支，可以使用Jenkins之类的CI工具进行自动化编译以及测试。
+      通常，大家会将master分支当作Merge分支使用。
+
+4.Topic分支
+    ☛ Topic（['tɑpɪk] 主题（等于theme）；题目；一般规则；总论）分支是为了开发新功能或修复Bug等任务而建立的分支。若要同时进行多个的任务，请创建多个的Topic分支。
+      Topic分支是从稳定的Merge分支创建的。完成作业后，要把Topic分支合并回Merge分支。
+
+5.Note
+  Merge和rebase都是合并历史记录，但是各自的特征不同。
+  ✈ merge
+  保持修改内容的历史记录，但是历史记录会很复杂。
+  ✈ rebase
+  历史记录简单，是在原有提交的基础上将差异内容反映进去。因此，可能导致原本的提交内容无法正常运行。可以根据开发团队的需要分别使用merge和rebase。
+
+  例如，想简化历史记录，
+  在topic分支中更新merge分支的最新代码，请使用rebase。
+  向merge分支导入topic分支的话，先使用rebase，再使用merge。
+
+6.解析：
+    ◆ 主分支
+    ◆ 特性分支
+    ◆ release分支
+    ◆ hotFix分支
+
+    分别使用4个种类的分支来进行开发的。
+
+     ____________
+    | 主分支      |
+     ------------
+     主分支有两种：master分支和develop分支
+
+     ■ master
+        master分支只负责管理发布的状态。在提交时使用标签记录发布版本号。
+
+     ■ develop
+        develop分支是针对发布的日常开发分支。过有合并分支的功用。
+
+     ____________
+    | 特性分支    |
+     ------------
+     特性分支就是之前的topic分支的功用。
+
+     这个分支是针对新功能的开发，在bug修正的时候从develop分支分叉出来的。基本上不需要共享特性分支的操作，所以不需要远端控制。完成开发后，把分支合并回develop分支后发布。
+
+     ____________
+    | release分支 |
+     ------------
+     release分支是为release做准备的。通常会在分支名称的最前面加上release-。release前需要在这个分支进行最后的调整，而且为了下一版release开发用develop分支的上游分支。
+
+     一般的开发是在develop分支上进行的，到了可以发布的状态时再创建release分支，为release做最后的bug修正。
+     到了可以release的状态时，把release分支合并到master分支，并且在合并提交里添加release版本号的标签。
+     要导入在release分支所作的修改，也要合并回develop分支。
+
+     ____________
+    | hotFix分支  |
+     ------------
+     hotFix分支是在发布的产品需要紧急修正时，从master分支创建的分支。通常会在分支名称的最前面加上 hotfix-。
+
+     例如，在develop分支上的开发还不完整时，需要紧急修改。这个时候在develop分支创建可以发布的版本要花许多的时间，所以最好选择从master分支直接创建分支进行修改，然后合并分支。
+     修改时创建的hotFix分支要合并回develop分支。
+
+
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+————————————————————————————————————————————————————————————————————— Example ————————————————————————————————————————————————————————————————————————————
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+❶ 事前准备
+    首先建立一个新目录，并在里面建立一个空数据库。这里我们创建一个名为tutorial的目录。
+
+    $ mkdir tutorial
+    $ cd tutorial
+    $ git init    //初始化一个空的git仓库
+    $ touch myFile.txt
+    $ git add myFile.txt
+    $ git commit -m "first commit"
+
+❷ 建立分支 （ $ git branch <branchName> ）
+    $ git branch issue1     //创建一个名为issue1的分支
+    $ git branch            //不指定参数直接执行branch命令的话，可以显示分支列表。 前面有*的就是现在的分支。
+
+❸ 切换分支
+    若要在新建的issue1分支进行提交，需要切换到issue1分支。要执行checkout命令以退出分支。    $ git checkout < branch >
+    在checkout命令指定 -b选项执行，可以创建分支并进行切换。   $ git checkout -b <branch>
+
+    $ git checkout issue1
+        --Switched to branch 'issue1'
+
+❹ 合并分支
+    向master分支合并issue1分支的修改。执行merge命令以合并分支。     $ git merge <commit>
+    该命令将指定分支导入到HEAD指定的分支。先切换master分支，然后把issue1分支导入到master分支。
+
+    $ git checkout master
+        --Switched to branch 'master'   （此时打开master分支下的myFile.txt会显示在master分支下的修改内容，issue1分支下的修改不会被记录）
+    $ git merge issue1      //master分支指向的提交移动到和issue1同样的位置。这个是fast-forward（快进）合并。此时打开myFile.txt,已经添加了issue1分支的修改
+
+❺ 删除分支
+    既然issue1分支的内容已经顺利地合并到master分支了，现在可以将其删除了。
+    $ git branch -d < branchName >
+
+    $ git branch -d issue1
+
+❻ 并行操作
+    1.创建issue2分支和issue3分支，并切换到issue2分支。
+
+    $ git branch issue3
+    $ git checkout -b issue2        //创建并切换到issue2分支
+
+    2.在issue2分支的myfile.txt编辑“添加commit命令”的说明后提交。
+
+    $ git add myFile.txt
+    $ git commit myFile.txt "添加commit"的说明
+
+    3.接着，切换到issue3分支。打开myfile.txt档案。由于在issue2分支添加了commit命令的说明，所以issue3分支的myfile.txt里只有add命令的说明。
+
+    $ git checkout issue3
+
+    4.打开myfile.txt档案。由于在issue2分支添加了commit命令的说明，所以issue3分支的myfile.txt里只有add命令的说明。添加pull命令的说明后提交。
+
+    $ git add myFile.txt
+    $ git commit -m "添加pull的说明"
+
+    5.这样，添加commit的说明的操作，和添加pull的说明的操作就并行进行了。
+
+❼ 解决并合并冲突
+    1.把issue2分支和issue3分支的修改合并到master。切换master分支后，与issue2分支合并。
+
+    $ git checkout master
+    $ git merge issue2      //切换master分支后，与issue2分支合并。执行fast-forward（快进）合并。
+
+    2.合并issue3
+
+    $ git merge issue3
+
+    自动合并失败。由于在同一行进行了修改，所以产生了冲突。这时myfile.txt的内容如下：
+
+        连猴子都懂的Git命令
+        add 把变更录入到索引中
+        <<<<<<< HEAD
+        commit 记录索引的状态
+        =======
+        pull 取得远端数据库的内容
+        >>>>>>> issue3
+
+    3.在发生冲突的地方，Git生成了内容的差异。修改取出冲突并重新提交
+
+    $ git add myFile.txt
+    $ git commit -m "合并issue3"  //因为在这次合并中修改了冲突部分，所以会重新创建合并修改的提交记录。这样，master的HEAD就移动到这里了。这种合并不是fast-forward合并，而是non fast-forward合并。
+
+❽ 用rebase合并
+    1.合并issue3分支的时候，使用rebase可以使提交的历史记录显得更简洁。现在暂时取消刚才的合并。
+
+    $ git reset --hard HEAD~
+
+    2.切换到issue3分支后，对master执行rebase。
+
+    $ git checkout issue3
+    $ git rebase master
+
+    3.和merge时的操作相同，修改在myfile.txt发生冲突的部分。
+
+      连猴子都懂的Git命令
+      add 把变更录入到索引中
+      <<<<<<< HEAD
+      commit 记录索引的状态
+      =======
+      pull 取得远端数据库的内容
+      >>>>>>> issue3
+
+    4.rebase的时候，修改冲突后的提交不是使用commit命令，而是执行rebase命令指定 --continue选项。若要取消rebase，指定 --abort选项。
+
+    $ git add myFile.txt
+    $ git rebase --continue
+
+    5.这样，在master分支的issue3分支就可以fast-forward合并了。切换到master分支后执行合并。
+
+    $ git checkout master
+    $ git merge issue3
+
+    myfile.txt的最终内容和merge是一样的，但是历史记录如下。
+
+❾
+❿
+
+
+
+
