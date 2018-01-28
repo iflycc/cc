@@ -1,0 +1,16 @@
+☛ 解决Git新建本地仓库的无法pull（建立rsa.pub）
+    $ cd ~/.ssh
+    $ ssh-keygen //输入‘id_rsa’,在输入提交的password,并复制id_rsa.pub的内容，添加到你的Github账号上。
+    $ git pull origin master --allow-unrelated-histories   //运行未关联的历史被pull
+    $ git config --global core.quotepath off    //关闭Git的ASCII转码
+    $ ssh -T [ -v ] git@github.com    //测试是否连接到github
+
+☛ 创建仓库
+    $ git init
+
+☛ 添加文件或目录到索引 / 撤销添加
+    $ git add <filepattern>  //添加-p选项，就可以只添加文件修改的其中一部分。 如果添加 -i 选项，那么可以选择用对话形式显示添加在索引的文件。
+    $ git reset HEAD <file>...  //撤销某个add
+
+☛ 提交追加到索引文件
+    $ commit [ -m ]
