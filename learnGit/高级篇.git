@@ -1,0 +1,581 @@
+1.分支
+    ☛ 是为了将修改记录的整体流程分叉保存。分叉后的分支不收其他分支的影响，所以在同一个数据库里可以同时进行多个修改。
+    ☛ 分叉的分支可以合并。
+
+2.master分支
+    ☛ 在数据库进行最初的提交后, Git会创建一个名为master的分支。因此之后的提交，在切换分支之前都会添加到master分支里。
+
+3.Merge分支
+    ☛ Merge分支是为了可以随时发布release（[rɪ'lis] 释放，发布）而创建的分支，它还能作为Topic分支的源分支使用。保持分支稳定的状态是很重要的。如果要进行更改，通常先创建Topic分支，而针对该分支，可以使用Jenkins之类的CI工具进行自动化编译以及测试。
+      通常，大家会将master分支当作Merge分支使用。
+
+4.Topic分支
+    ☛ Topic（['tɑpɪk] 主题（等于theme）；题目；一般规则；总论）分支是为了开发新功能或修复Bug等任务而建立的分支。若要同时进行多个的任务，请创建多个的Topic分支。
+      Topic分支是从稳定的Merge分支创建的。完成作业后，要把Topic分支合并回Merge分支。
+
+5.Note
+  Merge和rebase都是合并历史记录，但是各自的特征不同。
+  ✈ merge
+  保持修改内容的历史记录，但是历史记录会很复杂。
+  ✈ rebase
+  历史记录简单，是在原有提交的基础上将差异内容反映进去。因此，可能导致原本的提交内容无法正常运行。可以根据开发团队的需要分别使用merge和rebase。
+
+  例如，想简化历史记录，
+  在topic分支中更新merge分支的最新代码，请使用rebase。
+  向merge分支导入topic分支的话，先使用rebase，再使用merge。
+
+6.解析：
+    ◆ 主分支
+    ◆ 特性分支
+    ◆ release分支
+    ◆ hotFix分支
+
+    分别使用4个种类的分支来进行开发的。
+
+     ____________
+    | 主分支      |
+     ------------
+     主分支有两种：master分支和develop分支
+
+     ■ master
+        master分支只负责管理发布的状态。在提交时使用标签记录发布版本号。
+
+     ■ develop
+        develop分支是针对发布的日常开发分支。过有合并分支的功用。
+
+     ____________
+    | 特性分支    |
+     ------------
+     特性分支就是之前的topic分支的功用。
+
+     这个分支是针对新功能的开发，在bug修正的时候从develop分支分叉出来的。基本上不需要共享特性分支的操作，所以不需要远端控制。完成开发后，把分支合并回develop分支后发布。
+
+     ____________
+    | release分支 |
+     ------------
+     release分支是为release做准备的。通常会在分支名称的最前面加上release-。release前需要在这个分支进行最后的调整，而且为了下一版release开发用develop分支的上游分支。
+
+     一般的开发是在develop分支上进行的，到了可以发布的状态时再创建release分支，为release做最后的bug修正。
+     到了可以release的状态时，把release分支合并到master分支，并且在合并提交里添加release版本号的标签。
+     要导入在release分支所作的修改，也要合并回develop分支。
+
+     ____________
+    | hotFix分支  |
+     ------------
+     hotFix分支是在发布的产品需要紧急修正时，从master分支创建的分支。通常会在分支名称的最前面加上 hotfix-。
+
+     例如，在develop分支上的开发还不完整时，需要紧急修改。这个时候在develop分支创建可以发布的版本要花许多的时间，所以最好选择从master分支直接创建分支进行修改，然后合并分支。
+     修改时创建的hotFix分支要合并回develop分支。
+
+
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+————————————————————————————————————————————————————————————————————— Example Start———————————————————————————————————————————————————————————————————————
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+❶ 事前准备
+    首先建立一个新目录，并在里面建立一个空数据库。这里我们创建一个名为tutorial的目录。
+
+    $ mkdir tutorial
+    $ cd tutorial
+    $ git init    //初始化一个空的git仓库
+    $ touch myFile.txt
+    $ git add myFile.txt
+    $ git commit -m "first commit"
+
+❷ 建立分支 （ $ git branch <branchName> ）
+    $ git branch issue1     //创建一个名为issue1的分支
+    $ git branch            //不指定参数直接执行branch命令的话，可以显示分支列表。 前面有*的就是现在的分支。
+
+❸ 切换分支
+    若要在新建的issue1分支进行提交，需要切换到issue1分支。要执行checkout命令以退出分支。    $ git checkout < branch >
+    在checkout命令指定 -b选项执行，可以创建分支并进行切换。   $ git checkout -b <branch>
+
+    $ git checkout issue1
+        --Switched to branch 'issue1'
+
+❹ 合并分支
+    向master分支合并issue1分支的修改。执行merge命令以合并分支。     $ git merge <commit>
+    该命令将指定分支导入到HEAD指定的分支。先切换master分支，然后把issue1分支导入到master分支。
+
+    $ git checkout master
+        --Switched to branch 'master'   （此时打开master分支下的myFile.txt会显示在master分支下的修改内容，issue1分支下的修改不会被记录）
+    $ git merge issue1      //master分支指向的提交移动到和issue1同样的位置。这个是fast-forward（快进）合并。此时打开myFile.txt,已经添加了issue1分支的修改
+
+❺ 删除分支
+    既然issue1分支的内容已经顺利地合并到master分支了，现在可以将其删除了。
+    $ git branch -d < branchName >
+
+    $ git branch -d issue1
+
+❻ 并行操作
+    1.创建issue2分支和issue3分支，并切换到issue2分支。
+
+    $ git branch issue3
+    $ git checkout -b issue2        //创建并切换到issue2分支
+
+    2.在issue2分支的myfile.txt编辑“添加commit命令”的说明后提交。
+
+    $ git add myFile.txt
+    $ git commit myFile.txt "添加commit"的说明
+
+    3.接着，切换到issue3分支。打开myfile.txt档案。由于在issue2分支添加了commit命令的说明，所以issue3分支的myfile.txt里只有add命令的说明。
+
+    $ git checkout issue3
+
+    4.打开myfile.txt档案。由于在issue2分支添加了commit命令的说明，所以issue3分支的myfile.txt里只有add命令的说明。添加pull命令的说明后提交。
+
+    $ git add myFile.txt
+    $ git commit -m "添加pull的说明"
+
+    5.这样，添加commit的说明的操作，和添加pull的说明的操作就并行进行了。
+
+❼ 解决并合并冲突
+    1.把issue2分支和issue3分支的修改合并到master。切换master分支后，与issue2分支合并。
+
+    $ git checkout master
+    $ git merge issue2      //切换master分支后，与issue2分支合并。执行fast-forward（快进）合并。
+
+    2.合并issue3
+
+    $ git merge issue3
+
+    自动合并失败。由于在同一行进行了修改，所以产生了冲突。这时myfile.txt的内容如下：
+
+        连猴子都懂的Git命令
+        add 把变更录入到索引中
+        <<<<<<< HEAD
+        commit 记录索引的状态
+        =======
+        pull 取得远端数据库的内容
+        >>>>>>> issue3
+
+    3.在发生冲突的地方，Git生成了内容的差异。修改取出冲突并重新提交
+
+    $ git add myFile.txt
+    $ git commit -m "合并issue3"  //因为在这次合并中修改了冲突部分，所以会重新创建合并修改的提交记录。这样，master的HEAD就移动到这里了。这种合并不是fast-forward合并，而是non fast-forward合并。
+
+❽ 用rebase合并
+    1.合并issue3分支的时候，使用rebase可以使提交的历史记录显得更简洁。现在暂时取消刚才的合并。
+
+    $ git reset --hard HEAD~
+
+    2.切换到issue3分支后，对master执行rebase。
+
+    $ git checkout issue3
+    $ git rebase master
+
+    3.和merge时的操作相同，修改在myfile.txt发生冲突的部分。
+
+      连猴子都懂的Git命令
+      add 把变更录入到索引中
+      <<<<<<< HEAD
+      commit 记录索引的状态
+      =======
+      pull 取得远端数据库的内容
+      >>>>>>> issue3
+
+    4.rebase的时候，修改冲突后的提交不是使用commit命令，而是执行rebase命令指定 --continue选项。若要取消rebase，指定 --abort选项。
+
+    $ git add myFile.txt
+    $ git rebase --continue
+
+    5.这样，在master分支的issue3分支就可以fast-forward合并了。切换到master分支后执行合并。
+
+    $ git checkout master
+    $ git merge issue3
+
+    myFile.txt的最终内容和merge是一样的，但是历史记录如下。
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+————————————————————————————————————————————————————————————————————— Example End—————————————————————————————————————————————————————————————————————————
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+7.远端数据库
+    ☛ pull
+        执行pull可以取得远端数据库的历史记录。但首先要保证本地数据库分支没有任何的修改。此时只执行fast-forward合并。
+        如果本地数据库的master分支有新的历史记录，就需要合并双方的修改。
+        执行pull操作进行合并，若没有冲突的修改，就会自动创建合并提交；若发生冲突，先解决冲突，再手动提交。
+
+        $ git pull origin master
+
+     ☛ fetch
+        执行pull，远程数据库就会自动合并。但有时只是想确认本地数据库的内容而不想合并，这种情况就使用fetch。执行fetch就可以取得远程数据库的最新历史记录。
+        取得的提交会导入到没有名字的分支，这个分支可以从名为FETCH_HEAD的退出。这个状态下，若想把远程数据库的内容合并到本地，可以合并FETCH_HEAD，或者重新执行pull。
+
+        $ git fetch origin master
+        $ git merge FETCH_HEAD
+
+     ☛ push
+        从本地数据库push到远程数据库时，要fast-forward合并push的分支。如果发生冲突，push会被拒绝的。
+        若要共享在本地数据库创建的分支，需要明确的push。因此，没有执行push就不会给远程数据库带来影响，因而可以自由的创建自己的分支。
+        注：基本上，远程数据库共享的提交是不能修改的。如果修改的话，跟远程数据库同步的其他数据库的历史记录会变得很奇怪的。
+
+
+8.标签
+    Git可以使用2种标签：轻标签和注解标签。打上的标签是固定的，不能像分支那样可以移动位置。
+
+    ■ 轻标签
+        ○ 添加名称
+
+    ■ 注解标签
+        ○ 添加名称
+        ○ 添加注释
+        ○ 添加签名
+
+ ——————————————————————————————————————————————— Tag标签 Example Start —————————————————————————————————————————————————
+ ❶ 事前准备
+    首先建立一个新目录，并在里面建立一个空数据库。创建一个名为tutorial的目录，在tutorial目录创建一个名为myfile.txt的档案并编辑一段文字，然后提交。
+
+    $ mkdir tutorial
+    $ touch myFile.txt //编辑文字 “xxx”
+    $ git init
+    $ git add myFile.txt
+    $ git commit -m "first commit"
+
+ ❷ 添加轻标签
+    使用tag命令来添加标签，在<tagName>执行标签的名称。在HEAD指向的提交里添加名为apple的标签，请执行以下的命令。
+    $ git tag <tagName>
+    若没有指定tag，查看tag，则是：
+    $ git tag
+
+    $ git tag apple
+
+    如果在log命令添加 --decorate选项执行，可以显示包含标签资料的历史记录。(decorate 装饰，布置)
+
+    $ git log --decorate
+        commit e7978c94d2104e3e0e6e4a5b4a8467b1d2a2ba19 (HEAD, tag: apple, master)
+        Author: yourname <yourname@yourmail.com>
+        Date:   Wed Jul 18 16:43:27 2012 +0900
+
+            first commit
+
+ ❸ 添加注释标签
+    若要添加注解标签，可以在tag命令指定 -a选项执行。执行后会启动编辑区，请输入注解，也可以指定-m选项来添加注解。
+    $ git tag -a <tagName>
+    在HEAD指向的提交里添加名为banana的标签，请执行以下的命令。
+
+    $ git tag -am "连猴子都看得懂的Git" banana
+
+    如果在tag命令指定-n选项执行，可以显示标签的列表和注解。
+
+    $ git tag -n
+        apple           first commit
+        banana          连猴子都懂的Git
+ ❹ 删除标签
+    若要删除标签，在tag命令指定 -d选项执行
+    $ git tag -d <tagName>
+
+ ——————————————————————————————————————————————— Tag标签 Example End   —————————————————————————————————————————————————
+
+9.改写提交
+ ☛ 修改最近的提交
+        指定amend（[ə'mɛnd]修改；改善，改进）选项执行提交的话，可以修改同一个分支最近的提交内容和注解。
+        主要使用的场合：
+            ■ 添加最近提交时漏掉的档案
+            ■ 修改最近提交的注解
+
+ ☛ 取消过去的提交
+        在revert可以取消指定的提交内容。使用后面要提到的rebase -i或reset也可以删除提交。但是，不能随便删除已经发布的提交，这时需要通过revert创建要否定的提交。
+        主要使用的场合：
+            ■ 安全地取消过去发布的提交
+
+ ☛ 遗弃提交
+        在reset可以遗弃不再使用的提交。执行遗弃时，需要根据影响的范围而指定不同的模式，可以指定是否复原索引或工作树的内容。
+        除了默认的mixed模式，还有soft和hard模式。欲了解受各模式影响的部分，请参照下面的表格。
+         _________________________________________________________
+        |   模式名称  |   HEAD的位置   |     索 引   |     工作树    |
+         ---------------------------------------------------------
+         ---------------------------------------------------------
+        |    soft    |	    修改      |   不修改    |	    不修改     |
+         ---------------------------------------------------------
+        |    mixed	 |      修改      |    修 改	   |    不修改     |
+         ---------------------------------------------------------
+        |    hard    |	    修改      |    修 改	   |   修 改       |
+         ---------------------------------------------------------
+
+         主要使用的场合：
+            ■ 复原修改过的索引的状态(mixed)
+            ■ 彻底取消最近的提交(hard)
+            ■ 只取消提交(soft)
+
+ ☛ 提取提交
+        在cherry-pick，您可以从其他分支复制指定的提交，然后导入到现在的分支。
+        主要使用的场合：
+            ■ 把弄错分支的提交移动到正确的地方
+            ■ 把其他分支的提交添加到现在的分支
+
+ ☛ 改写提交的历史记录
+        在rebase指定i选项，您可以改写、替换、删除或合并提交。
+        主要使用的场合：
+            ■ 在push之前，重新输入正确的提交注解
+            ■ 清楚地汇合内容含义相同的提交。
+            ■ 添加最近提交时漏掉的档案
+
+ ☛ 汇合分支上的提交，然后一同合并到分支
+        merge的特殊选项：squash（ [skwɔʃ]
+                                    n. 壁球；挤压；咯吱声；南瓜属植物；（英）果汁饮料
+                                   vt. 镇压；把…压扁；使沉默
+                                   vi. 受挤压；发出挤压声；挤入）
+
+        用这个选项指定分支的合并，就可以把所有汇合的提交添加到分支上。
+        主要使用的场合：
+            ■ 汇合主题分支的提交，然后合并提交到目标分支。
+
+ ↓↓↓↓↓—————————————————————————————————————————— 改写提交 Example Start —————————————————————————————————————————————————
+❶ commit -amend
+    下载演示压缩包：https://backlog.com/git-tutorial/cn/download/stepup-tutorial.zip
+
+    $ git log
+        commit 326fc9f70d022afdd31b0072dbbae003783d77ed
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:17:56 2012 +0900
+
+            添加add的说明
+
+        commit 48eec1ddf73a7fb508ef664efd6b3d873631742f
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:16:14 2012 +0900
+
+            first commit
+
+    编辑sample.txt添加内容并保存，添加注释。添加--amend命令，然后提交。
+
+    $ git add sample.txt
+    $ commit --amend
+
+    编辑工具会显示最近一次提交的提交消息，把消息修改为「添加add和commit的讲解」并进行保存。
+❷ revert
+    进入stepup-tutorial/tutorial2目录。用log命令确认工作树的状态。
+
+    $ git log
+        commit 0d4a808c26908cd5fe4b6294a00150342d1a58be
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:19:26 2012 +0900
+
+            添加pull的说明
+
+        commit 9a54fd4dd22dbe22dd966581bc78e83f16cee1d7
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:19:01 2012 +0900
+
+            添加commit的说明
+
+        commit 326fc9f70d022afdd31b0072dbbae003783d77ed
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:17:56 2012 +0900
+
+            添加add的说明
+
+        commit 48eec1ddf73a7fb508ef664efd6b3d873631742f
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:16:14 2012 +0900
+
+            first commit
+
+    $ tail -n 100 sample.txt
+        连猴子都懂的Git命令
+        add 把变更录入到索引中
+        commit 记录索引的状态
+        pull 取得远端数据库的内容
+
+    用revert取消「添加pull的讲解」提交。
+
+    $ git revert HEAD
+        [master d47bb1d] Revert "添加pull的说明"
+         1 files changed, 1 insertions(+), 2 deletions(-)
+
+    $ tail -n 100 sample.txt
+       连猴子都懂的Git命令
+       add 把变更录入到索引中
+       commit 记录索引的状态
+
+❸ reset
+    我们将用reset来删除master分支最前面的两个提交。
+
+    $ cd stepup-tutorial3
+    $ git log
+        commit 0d4a808c26908cd5fe4b6294a00150342d1a58be
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:19:26 2012 +0900
+
+            添加pull的说明
+
+        commit 9a54fd4dd22dbe22dd966581bc78e83f16cee1d7
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:19:01 2012 +0900
+
+            添加commit的说明
+
+        commit 326fc9f70d022afdd31b0072dbbae003783d77ed
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:17:56 2012 +0900
+
+            添加add的说明
+
+        commit 48eec1ddf73a7fb508ef664efd6b3d873631742f
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:16:14 2012 +0900
+
+            first commit
+
+     $ cat sample.txt
+        连猴子都懂的Git命令
+        add 把变更录入到索引中
+        commit 记录索引的状态
+        pull 取得远端数据库的内容
+
+    $ git reset --hard HEAD~~ //删除最后两个提交
+        HEAD is now at 326fc9f 添加add的说明
+
+    $ git log
+        commit 326fc9f70d022afdd31b0072dbbae003783d77ed
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:17:56 2012 +0900
+
+            添加add的说明
+
+        commit 48eec1ddf73a7fb508ef664efd6b3d873631742f
+        Author: yourname <yourname@yourmail.com>
+        Date:   Mon Jul 16 23:16:14 2012 +0900
+
+            first commit
+
+    在reset之前的提交可以参照ORIG_HEAD。Reset错误的时候，在ORIG_HEAD上reset 就可以还原到reset前的状态。
+
+    $ git reset --hard ORIG_HEAD //恢复之前的两个删除~~
+
+❹ cherry-pick
+    从issue1分支的commit历史中提取有用的提交合并到master分支上
+
+    $ cd stepup-tutorial/tutorial4
+    $ git branch
+        *issue1
+        master
+
+    $ git log --graph --oneline
+         git log --graph --oneline
+        * ff73d74 (HEAD -> issue1) 添加pull的说明
+        * c81dba1 添加commit的说明                -----需要提取的提交说明
+        * e46bdb9 first commit
+
+    $ git checkout master
+    $ git cherry-pick  c81dba1
+        error: could not apply 99daed2... commit
+        hint: after resolving the conflicts, mark the corrected paths
+        hint: with 'git add <paths>' or 'git rm <paths>'
+        hint: and commit the result with 'git commit'
+
+    发生冲突则解决冲突再提交。
+
+    $ git add sample.txt
+    $ git commit
+
+❺ 用rebase -i 汇合提交(可将比如：最后两个提交合并成一个提交)
+    进入stepup-tutorial/tutorial5目录。在这里汇合「添加commit的讲解」和「添加pull的讲解」的修改，然后合并到一个提交。
+
+    $ cd stepup-tutorial/tutorial5
+    $ git log --graph --oneline
+        * 87fac95 (HEAD -> master) 添加pull的说明
+        * 77bd678 添加commit的说明
+        * 5a841fb 添加add的说明
+        * 3c8a06e first commit
+
+    $ git rebase -i HEAD~~
+
+    打开文本编辑器，将看到从HEAD到HEAD~~的提交如下图显示。
+        pick 9a54fd4 添加commit的说明
+        pick 0d4a808 添加pull的说明
+
+        # Rebase 326fc9f..0d4a808 onto d286baa
+        #
+        # Commands:
+        #  p, pick = use commit
+        #  r, reword = use commit, but edit the commit message
+        #  e, edit = use commit, but stop for amending
+        #  s, squash = use commit, but meld into previous commit
+        #  f, fixup = like "squash", but discard this commit's log message
+        #  x, exec = run command (the rest of the line) using shell
+        #
+        # If you remove a line here THAT COMMIT WILL BE LOST.
+        # However, if you remove everything, the rebase will be aborted.
+        #
+    将第二行的“pick”改成“squash”，然后保存并退出。由于合并后要提交，所以接着会显示提交信息的编辑器，请编辑信息后保存并退出。
+    这样，两个提交就合并成一个提交了。用log命令确认历史记录。
+
+❻ 用rebase -i 修改提交
+    进入stepup-tutorial/tutorial6目录。本地端的历史记录的状态如下图显示。我们在这里修改「添加commit的讲解」的内容。
+    用rebase -i ，首先选择要修改的提交。
+
+    $ cat sample.txt
+         连猴子都懂的Git命令
+         add 把变更录入到索引中
+         commit 的讲解         --- 待被修改
+         pull 取得远端数据库的内容
+
+    $ git rebase -i HEAD~~
+
+    打开文本编辑器，将看到从HEAD到HEAD~~的提交如下图显示。
+        pick 9a54fd4 添加commit的说明
+        pick 0d4a808 添加pull的说明
+
+        # Rebase 326fc9f..0d4a808 onto d286baa
+        #
+        # Commands:
+        #  p, pick = use commit
+        #  r, reword = use commit, but edit the commit message
+        #  e, edit = use commit, but stop for amending
+        #  s, squash = use commit, but meld into previous commit
+        #  f, fixup = like "squash", but discard this commit's log message
+        #  x, exec = run command (the rest of the line) using shell
+        #
+        # If you remove a line here THAT COMMIT WILL BE LOST.
+        # However, if you remove everything, the rebase will be aborted.
+        #
+
+    将第一行的“pick”改成“edit”，然后保存并退出。将会显示以下内容，修改过的提交呈现退出状态。
+        Stopped at d286baa... 添加commit的说明
+        You can amend the commit now, with
+
+                git commit --amend
+
+        Once you are satisfied with your changes, run
+
+                git rebase --continue
+
+    打开sample.txt，适当地修改“commit的讲解”部分。
+        连猴子都懂的Git命令
+        add 把变更录入到索引中
+        commit 记录索引的状态   --- 被修改
+        pull 取得远端数据库的内容
+
+    用commit --amend保存修改。
+
+    $ git add sample.txt
+    $ git commit --amend
+
+    现在已经commit，但是rebase操作还没结束。若要通知这个提交的操作已经结束，请指定 --continue选项执行rebase。
+
+    $ git rebase --continue;
+
+    提交的修改完成了。如果要把多个提交修改成edit，下一个要修改的提交会退出，请执行同样的修改。
+
+    ★ 注：这时，有可能其他提交会发生冲突, 请修改冲突部分后再执行add和rebase --continue。这时不需要提交。
+          如果在中途要停止rebase操作，请在rebase指定--abort选项执行，这样就可以抹去并停止在rebase的操作。
+
+          实际上，在rebase之前的提交会以ORIG_HEAD之名存留。
+          如果rebase之后无法复原到原先的状态，可以用git reset --hard ORIG_HEAD复原到rebase之前的状态。
+
+❼ merge --squash
+    移动到stepup-tutorial/tutorial7目录。本地端的历史记录的状态如下图显示。把issue1分支的所有提交合并成一个提交，并导入到master分支。
+    切换到master分支后，指定 --squash选项执行merge。进入时，默认在issue1分支上。
+
+    $ git checkout master
+    $ git merge --squash issue1
+        Auto-merging sample.txt
+        CONFLICT (content): Merge conflict in sample.txt
+        Squash commit -- not updating HEAD
+        Automatic merge failed; fix conflicts and then commit the result.
+
+    解决冲突。
+
+    $ git add sample.txt
+    $ git commit
+ ↑↑↑↑↑—————————————————————————————————————————— 改写提交 Example End   —————————————————————————————————————————————————

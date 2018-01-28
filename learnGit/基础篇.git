@@ -1,0 +1,46 @@
+————————————————————————————————————————————————————↓↓↓基本步骤↓↓↓———————————————————————————————————————————————————————
+1、git config --global user.name "usernme"
+2、git config --global user.email "emailName"
+3、git bash 进入工程目录：git init
+4、使用git add filename 将文件添加到库
+5、使用git commit -m "first commit" 进行提交
+6、本地与仓库进行配对 git remote add origin git@github.com:eoooxy/git_test.git
+7、把本地的内容推送到仓库中 git push  -u origin master
+—————————————————————————————————————————————————————↑↑↑基本步骤↑↑↑——————————————————————————————————————————————————————
+
+
+1.初始设置
+    $ git config --global user.name "<用户名>"
+    $ git config --global user.email "<电子邮件>"
+
+2.新建数据库
+    $ git init
+
+3.提交文件
+    $ git status                    //确认工作树和索引的状态。
+    $ git add .                     //指定参数「.」，可以把所有的文件加入到索引。
+    $ git commit -m "xxx"           //执行commit命令之后确认状态
+
+4.共享数据库
+    $ git remote add origin git@github.com:sweetnewbegin/cc.git    //设置远程仓库别名为：origin
+
+    修改：<1> git remote set-url origin  <URL>
+         <2> git remote rm origin
+             git remote add origin  <URL>
+
+5.推送到远程仓库
+    $ git push -u origin master
+
+6.克隆远程仓库到本地
+    $ git clone  origin git@github.com:sweetnewbegin/cc.git  ./testCc   //远程仓库写完整的url -> 当前进入的文件夹的位置下的"testCc"文件夹
+
+    注：当在克隆的数据库目录执行推送时，可省略数据库的名称（origin）和分支名称（master）
+
+7.合并修改记录
+    在执行pull之后，进行下一次push之前，如果其他人进行了推送内容到远程数据库的话，那么你的push将被拒绝，需要合并操作。
+
+8.解决冲突
+    如果远程数据库和本地数据库的同一个位置都发生了修改的情况下，因无法自动判断要选用哪一个修改，就会发生冲突。Git会在发生冲突的地方标注，需手动解决。
+
+9.log命令确认数据库的历史记录是否准确。指定--graph选项，能以文本形式显示更新记录的流程图。指定--oneline选项，能在一行中显示提交的信息。
+    $ git log --graph --oneline
