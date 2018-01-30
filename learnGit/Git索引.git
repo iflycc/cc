@@ -5,12 +5,69 @@
     $ git config --global core.quotepath off    //关闭Git的ASCII转码
     $ ssh -T [ -v ] git@github.com    //测试是否连接到github
 
-☛ 创建仓库
-    $ git init
+〓〓〓  基本操作  〓〓〓
+    ☛ 创建仓库
+        $ git init
 
-☛ 添加文件或目录到索引 / 撤销添加
-     $ git add <filepattern>  //添加-p选项，就可以只添加文件修改的其中一部分。 如果添加 -i 选项，那么可以选择用对话形式显示添加在索引的文件。
-     $ git reset HEAD <file>...  //撤销某个add
+    ☛ 添加文件或目录到索引 / 撤销添加
+        $ git add -u    //只添加已提交过的文件到索引
+        $ git add <filepattern>  //添加-p选项，就可以只添加文件修改的其中一部分。 如果添加 -i 选项，那么可以选择用对话形式显示添加在索引的文件。
+        $ git reset HEAD <file>...  //撤销某个add
 
-☛ 提交追加到索引文件
-     $ commit [ -m ]
+    ☛ 提交 / 撤销 追加到索引文件
+        $ git commit [ -m ]  //提交某次修改
+        $ git checkout -- <file>...   //撤销某个文件的提交
+
+    ☛ 显示修改文件清单
+        $ git status
+
+    ☛ 查看修改文件的差异
+        $ git diff  //不指定选项可以显示工作树和索引的差异。添加－cached 选项可以显示索引与HEAD的差异。如果指定HEAD或提交，则可以显示工作树和指定HEAD之间的差异。
+
+    ☛ 显示提交记录
+        $ git log   //若要查看特定文件的提交记录，请指定文件名称。
+
+    ☛ 查看提交的详细记录
+        $ git show <commit>  //show命令的参数可以指定log命令参阅的提交与HEAD。
+
+    ☛ 修改，移动文件的名称或目录的名称
+        $ git mv <oldfilename> <newfilename>
+
+    ☛ 删除文件
+        $ git rm <file>
+
+    ☛ 删除非管理对象的文件
+        $ git clean  //添加-n选项就可以查看即将被删除的文件。如果添加-f选项，就立即删除文件。
+                   在默认程序里，.gitignore指定的文件不在删除范围内。如果添加-x选项，.gitignore指定的文件也成为删除对象了。
+
+
+〓〓〓  操作分支  〓〓〓
+    ☛ 显示分支清单
+        $ git branch [ -a ]  //添加-a选项，就可以显示包括远端分支在内的分支清单。
+
+    ☛ 创建分支
+        $ git branch <branchName>
+
+    ☛ 修改分支名称
+        $ git branch -m <oldBranch> <newBranch>
+
+    ☛ 删除分支
+        $ git branch -d <branchName>  //若有未合并到HEAD的提交，则不能删除分支。如果要强制删除未提交的分支，请添加-D选项执行。
+
+    ☛ 切换分支
+        $ git checkout <branchName>
+        $ git checkout -b <newBranch>  //创建并切换到新建的分支上
+
+    ☛ 合并分支
+        $ git merge <branchName>  //如果添加 --no-ff 选项，就是fast-forward合并也可以建立合并提交。这是记录分支存在过的非常有用的选项。
+
+
+〓〓〓  操作标签  〓〓〓
+    ☛ 
+
+    ☛
+
+    ☛
+
+    ☛
+
