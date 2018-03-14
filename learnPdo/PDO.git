@@ -1,0 +1,462 @@
+# —————————————————————————————————————————————— PDO连接 Start —————————————————————————————————————————————————————————
+$dsn = "mysql:host=localhost;dbname=test";
+$password = "123456";
+$username = "root";
+$options = array(
+    PDO::ATTR_PERSISTENT => false, //关闭持久化连接 当赋值为true的时候，则持久化连接
+    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES UTF8;",
+);
+# ① 连接到Mysql
+$pdo = new PDO($dsn,$username,$password,$options);
+
+# ② 处理连接错误
+try{
+    $dh = new PDO($dsn,$username,$password);
+
+    foreach ($dh->query("select * from `special_pay` limit 2",PDO::FETCH_ASSOC) as $row){
+        print_r($row);
+    }
+}
+catch (Exception $exception){
+    echo "Error!：".$exception->getMessage(),"<br />";
+    exit;
+}
+
+
+$res = $dh->exec("delete from `special_pay` WHERE id=30");
+$attributes = $dh->getAttribute(PDO::ATTR_SERVER_INFO);
+
+$resAttrDrivers = PDO::getAvailableDrivers();
+
+$resInTransaction = $dh->inTransaction();
+
+$resLastInsertId = $dh->lastInsertId();
+
+# prepare() 测试
+$stateObj = $dh->prepare("select * from `special_pay` WHERE `id` = :id;");
+$stateObj->execute(array(":id" => 40));
+$resPrepare = $stateObj->fetchAll();
+
+$stateObj = $dh->prepare("select * from `special_pay` WHERE `id` = ?;");
+$stateObj->execute(array(40));
+$resPrepare = $stateObj->fetchAll();
+
+# quote()测试
+$resQuote = $dh->quote("test_string");
+
+
+//$dh->beginTransaction();
+//$dh->commit();
+//$dh->rollBack();
+
+# ③ 关闭连接 | 连接数据成功后，返回一个 PDO 类的实例给脚本，此连接在 PDO 对象的生存周期中保持活动。要想关闭连接，需要销毁对象以确保所有剩余到它的引用都被删除，可以赋一个 NULL 值给对象变量。如果不这么做，PHP 在脚本结束时会自动关闭连接。
+$dh = null;
+# —————————————————————————————————————————————— PDO连接   End —————————————————————————————————————————————————————————
+
+#----------------------------------------------- PDO事务 Start ---------------------------------------------------------
+# 事务的四大特性：（ACID）
+# ① 原子性（Atomicity）  ：一个事务必须视为一个不可分割的最小工作单元，整个事务中的所有操作要么全部提交成功，要么全部失败回滚。
+#       原子性是指事务包含的所有操作要么全部成功，要么全部失败回滚，这和前面两篇博客介绍事务的功能是一样的概念，因此事务的操作如果成功就必须要完全应用到数据库，如果操作失败则不能对数据库有任何影响。
+# ② 一致性（Consistency）：数据库总数从一个一致性的状态转换到另一个一致性的状态。
+#       一致性是指事务必须使数据库从一个一致性状态变换到另一个一致性状态，也就是说一个事务执行之前和执行之后都必须处于一致性状态。拿转账来说，假设用户A和用户B两者的钱加起来一共是5000，那么不管A和B之间如何转账，转几次账，事务结束后两个用户的钱相加起来应该还得是5000，这就是事务的一致性。
+# ③ 隔离性（Isolation）  ：一个事务所做的修改在最终提交以前，对其他事务是不可见的。
+#       隔离性是当多个用户并发访问数据库时，比如操作同一张表时，数据库为每一个用户开启的事务，不能被其他事务的操作所干扰，多个并发事务之间要相互隔离。即要达到这么一种效果：对于任意两个并发的事务T1和T2，在事务T1看来，T2要么在T1开始之前就已经结束，要么在T1结束之后才开始，这样每个事务都感觉不到有其他事务在并发地执行。
+# ④ 持久性（Durability） ：一旦事务提交，则其所做的修改就会永久保存到数据库中。此时即使系统崩溃，修改的数据也不会丢失。
+#       持久性是指一个事务一旦被提交了，那么对数据库中的数据的改变就是永久性的，即便是在数据库系统遇到故障的情况下也不会丢失提交事务的操作。例如我们在使用JDBC操作数据库时，在提交事务方法后，提示用户事务操作完成，当我们程序执行完成直到看到提示后，就可以认定事务以及正确提交，即使这时候数据库出现了问题，也必须要将我们的事务完全执行完成，否则就会造成我们看到提示事务处理完毕，但是数据库因为故障而没有执行事务的重大错误。
+
+#----------------------------------------------- PDO事务 End -----------------------------------------------------------
+
+
+#=============================================== PDO类 Start ===========================================================
+$db = new PDO($dsn,$username,$password,$options);
+# ① PDO::beginTransaction()       启动一个事务
+    $db->beginTransaction();
+# ② PDO::commit()                 提交一个事务
+    $db->commit();
+# ③ PDO::rollback()               回滚一个事务
+//    $db->rollBack();
+# ④ PDO::__construct()            创建一个表示数据库连接的 PDO 实例
+# ⑤ PDO::errorCode()              获取一个PDO的SQL STATE码
+    $db->errorCode();
+# ⑥ PDO::errorInfo()              返回最后一次操作数据库的错误信息
+    $db->errorInfo();
+# ⑦ PDO::exec()                   执行一条sql语句并返回受影响的行数（除了“查询select”操作，select操作用query()方法执行）
+    $db->exec("update.../ insert into.../ delete from...");
+# ⑧ PDO::getAttribute(int)        取回一个数据库的连接属性
+    $db->getAttribute("");
+# ⑨ PDO::getAttributeDrivers()    返回一个 包含可用 PDO 驱动名字的数组。如果没有可用的驱动，则返回一个空数组
+    PDO::getAvailableDrivers();
+# ⑩ PDO::inTransaction()          返回bool，检查驱动内的一个事务当前是否处于激活。此方法仅对支持事务的数据库驱动起作用
+    $db->inTransaction();
+/**
+ * @tip     mysql_insert_id函数返回的是储存在有AUTO_INCREMENT约束的字段的值，如果表中的字段不使用AUTO_INCREMENT约束或者使用自己生成的唯一值插入，
+ *          那么该函数不会返回你所存储的值，而是返回NULL或0。因此，在没有使用AUTO_INCREMENT约束的表中，或者ID是自己生成的唯一ID，lastInsertId函数返回的都是0。
+ * @param   string $name 应该返回ID的那个序列对象的名称；如果没有为参数 name 指定序列名称，则返回一个表示最后插入数据库那一行的行ID的字符串；如果为参数 name 指定了序列名称，则返回一个表示从指定序列对象取回最后的值的字符串。
+ */
+# 11 PDO::lastInsertID(string $name);
+    $db->lastInsertId();
+/**
+ * @tip     备要执行的SQL语句并返回一个 PDOStatement 对象
+ *          为 PDOStatement::execute() 方法准备要执行的SQL语句，SQL语句可以包含零个或多个命名（:name）或问号（?）参数标记，参数在SQL执行时会被替换。
+ *          你不能在 SQL 语句中同时包含命名（:name）或问号（?）参数标记，只能选择其中一种风格。预处理 SQL 语句中的参数在使用PDOStatement::execute()方法时会传递真实的参数。
+ * @param   string $statement 合法的SQL语句
+ * @param   array  $driver_options 此数组包含一个或多个 key=>value 对来设置 PDOStatement 对象的属性， 最常使用到是将PDO::ATTR_CURSOR值设置为PDO::CURSOR_SCROLL来请求一个可滚动游标。
+ * @return  mixed 成功：PDO::prepare()返回PDOStatement对象； 失败：返回false或者跑出异常PDOException
+ */
+# 12 PDO::prepare(statement,driver_options)
+    # (:name)风格
+    $statementObj = $db->prepare("select * from `table_name` where `name` = :name AND `age` > :age;");
+    $statementObj->execute(array(":name" => "James",":age" => 18));
+    $res = $statementObj->fetchAll();
+    # (?)风格
+    $statementObj = $db->prepare("select * from `table_name` where `name` = ? AND `age` > ?;");
+    $statementObj->execute(array("James",18));
+    $res = $statementObj->fetchAll();
+/**
+ * @tip     string $string 要添加引号的字符串
+ * @param   int $parameter_type 为驱动程序提供数据类型
+ */
+# 13 PDO::quote(string $string , [int $parameter_type = PDO::PARAM_STR])
+    $db->quote("string");
+/**
+ * @tip 设置属性，返回true / false ; 与实例化PDO类第四个参数options效果相同
+ */
+# 14 PDO::setAttribute()
+    $db->setAttribute(PDO::MYSQL_ATTR_INIT_COMMAND,"SET NAMES UTF8");
+
+
+#=============================================== PDO类   End ===========================================================
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> PDOStatement类 Start <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/**
+ * bindColumn(mixed $column , mixed &$param [, int $type [, int $maxlen [, mixed $driverdata ]]])
+ *
+ * @tip     绑定一列到一个 PHP 变量 ，把结果集输出绑定到PHP变量上；绑定方式： 列号绑定（从1开始） /  列名绑定
+ * @param   mixed $column 结果集中的列号（从1开始索引）或列名。如果使用列名，注意名称应该与由驱动返回的列名大小写保持一致
+ * @param   string $variableName 绑定的变量
+ * @param   int $type 通过 PDO::PARAM_* 常量指定的参数的数据类型
+ * @param   int $maxlen 预分配提示
+ * @param   mixed   $driverdata  驱动的可选参数
+ * @return  bool    成功时返回 TRUE， 或者在失败时返回 FALSE
+ */
+$sql = "select uid,phone,product_detail from special_pay limit 5;";
+$stmt = $db->prepare($sql);
+$stmt->execute();
+# 通过列号绑定
+$stmt->bindColumn(1,$uid);
+$stmt->bindColumn(2,$phone);
+# 通过列名绑定
+$stmt->bindColumn("product_detail",$productDetail);
+
+while($row = $stmt->fetch(PDO::FETCH_BOUND)){
+    $data = $uid . "\t" . $phone . "\t" . $productDetail . "\r\n";
+    print $data;
+}
+echo "<hr />";
+/**
+ * bindParam(mixed $parameter , mixed &$variable [, int $data_type = PDO::PARAM_STR [, int $length [, mixed $driver_options ]]])
+ *
+ * @tip     绑定一个参数到指定的变量名，不同于bindValue()，第二个参数variable只能是变量
+ * @param   mixed $parameter 参数标识符。对于使用命名占位符的预处理语句，应是类似 :name 形式的参数名。对于使用问号占位符的预处理语句，应是以1开始索引的参数位置
+ * @param   string $variable    绑定到 SQL 语句参数的 PHP 变量名
+ * @param   int $data_type   使用 PDO::PARAM_* 常量明确地指定参数的类型。要从一个存储过程中返回一个 INOUT 参数，需要为 data_type 参数使用按位或操作符去设置 PDO::PARAM_INPUT_OUTPUT 位
+ * @param   int $length     数据类型的长度。为表明参数是一个存储过程的 OUT 参数，必须明确地设置此长度
+ * @param   mixed $driver_options
+ * @return  bool 成功时返回 TRUE， 或者在失败时返回 FALSE
+ *
+ * @notice  bindParam()方法的第二个参数必须是变量，不能是具体数值
+ */
+
+$uid = 573718439;
+$phone = 13905602779;
+$state = $db->prepare("select * from special_pay WHERE uid=:uid AND phone=:phone;");
+# 使用(:name)方式绑定参数
+$state->bindParam(":uid",$uid);
+$state->bindParam(":phone",$phone);
+$state->execute();
+$rs = $state->fetchAll();
+
+# 使用（?）列号绑定参数
+$state = $db->prepare("select * from special_pay WHERE uid=? AND phone=?;");
+$state->bindParam(1,$uid);
+$state->bindParam(2,$phone);
+$state->execute();
+$rs = $state->fetchAll();
+
+/**
+ * bindValue( mixed $parameter , mixed $value [, int $data_type = PDO::PARAM_STR ] )
+ *
+ * @tip     把一个值绑定到一个参数 绑定一个值到用作预处理的 SQL 语句中的对应命名占位符或问号占位符
+ * @param   mixed   $parameter  参数表示符，对于使用命名占位符的预处理语句，应是类似 :name 形式的参数名。对于使用问号占位符的预处理语句，应是以1开始索引的参数位置。
+ * @param   mixed   $value  绑定到的参数的值
+ * @param   integer $date_type  使用 PDO::PARAM_* 常量明确地指定参数的类型
+ * @return  bool    成功时返回 TRUE， 或者在失败时返回 FALSE
+ */
+# (:name)方式绑定
+$state = $db->prepare("select * from special_pay WHERE uid=:uid AND phone=:phone;");
+$state->bindValue(":uid","573718439");
+$state->bindValue(":phone","13905602779");
+$state->execute();
+$rs = $state->fetchAll(PDO::FETCH_ASSOC);
+
+# (?)方式绑定
+$state = $db->prepare("select * from special_pay WHERE uid=? AND phone=?;");
+$state->bindValue(1,"573718439");
+$state->bindValue(2,"13905602779");
+$state->execute();
+$rs = $state->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * closeCursor(void)
+ *
+ * @tip     关闭游标，使语句能再次被执行
+ */
+$state->closeCursor();
+
+/**
+ * columnCount(void)
+ *
+ * @tip     返回结果集中的列数，  列数：所查询的字段的个数。
+ *
+ * @return  integer 返回由 PDOStatement 对象代表的结果集中的列数。如果没有结果集，则 PDOStatement::columnCount() 返回 0。
+ *
+ * @notice  如果是由 PDO::query() 返回的 PDOStatement 对象，则列数计算立即可用。
+ *          如果是由 PDO::prepare() 返回的 PDOStatement 对象，则在调用 PDOStatement::execute() 之前都不能准确地计算出列数。
+ */
+# query返回的PDOStatement
+$queryState = $db->query("select id,uid,phone from special_pay where id < 10",PDO::FETCH_ASSOC);
+$queryState->columnCount(); //如上，则返回值为：3
+# prepare返回的PDOStatement
+$prepareState = $db->prepare("select id,uid,phone,imei from special_pay WHERE id < :id");
+$prepareState->bindValue(":id",5);
+$prepareState->execute();
+$columns = $prepareState->columnCount(); //值：4 （必须在execute()方法执行之后才可调用 columnCount()方法）
+
+/**
+ * debugDumpParams()
+ *
+ * @tip     打印一条 SQL 预处理命令
+ *          直接打印出一条预处理语句包含的信息。提供正在使用的 SQL 查询、所用参数（Params）的数目、参数的清单、参数名、用一个整数表示的参数类型（paramtype）、键名或位置、值、以及在查询中的位置（如果当前 POD 驱动不支持，则为-1）。
+ *          此为一个用于调试的功能，在正常输出的情况下直接输出数据。
+ *          和直接将结果输出到浏览器一样，可使用输出控制函数来捕获当前函数的输出，然后(例如)保存到一个 string 中。
+ *          只打印此时此刻语句中的参数。额外的参数不存储在语句中，也就不会被输出。
+ *
+ */
+$prepareState->debugDumpParams();
+
+/**
+ * errorCode(void)
+ *
+ * @tip     PDO::errorCode() 相同，只是 PDOStatement::errorCode() 只取回 PDOStatement 对象执行操作中的错误码
+ */
+$prepareState->errorCode();
+
+/**
+ * errorInfo(void)
+ *
+ * @tip     获取跟上一次语句句柄操作相关的扩展错误信息;PDOStatement::errorInfo() 返回一个关于上一次语句句柄执行操作的错误信息的数组
+ *           0	SQLSTATE 错误码（一个由5个字母或数字组成的在 ANSI SQL 标准中定义的标识符）。
+ *           1	具体驱动错误码。
+ *           2	具体驱动错误信息。
+ */
+$prepareState->errorInfo();
+
+/**
+ * execute([ array $input_parameters ])
+ *
+ * @tip     执行预处理过的语句。如果预处理过的语句含有参数标记，必须选择下面其中一种做法：
+ *          1：调用 PDOStatement::bindParam() 绑定 PHP 变量到参数标记：如果有的话，通过关联参数标记绑定的变量来传递输入值和取得输出值
+ *          2：或传递一个只作为输入参数值的数组
+ */
+# 例如，执行一条in查询,不使用bind绑定方式
+$params = array(1, 21, 63, 171);
+$place_holders = implode(',', array_fill(0, count($params), '?'));// 创建一个填充了和params相同数量占位符的字符串，即 ?,?,?,?
+
+$state = $db->prepare("select * from special_pay WHERE id in ({$place_holders})");
+$state->execute($params); //直接传入数组
+$rs = $state->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * fetch([ int $fetch_style [, int $cursor_orientation = PDO::FETCH_ORI_NEXT [, int $cursor_offset = 0 ]]])
+ *
+ * @tip     从结果集中获取下一行；从一个 PDOStatement 对象相关的结果集中获取下一行。fetch_style 参数决定 POD 如何返回行。
+ * @param   integer $fetch_style
+ *          PDO::FETCH_ASSOC：返回一个索引为结果集列名的数组
+ *          PDO::FETCH_BOTH（默认）：返回一个索引为结果集列名和以0开始的列号的数组
+ *          PDO::FETCH_BOUND：返回 TRUE ，并分配结果集中的列值给PDOStatement::bindColumn() 方法绑定的 PHP 变量。
+ *          PDO::FETCH_CLASS：返回一个请求类的新实例，映射结果集中的列名到类中对应的属性名。如果 fetch_style 包含 PDO::FETCH_CLASSTYPE（例如：PDO::FETCH_CLASS | PDO::FETCH_CLASSTYPE），则类名由第一列的值决定
+ *          PDO::FETCH_INTO：更新一个被请求类已存在的实例，映射结果集中的列到类中命名的属性
+ *          PDO::FETCH_LAZY：结合使用 PDO::FETCH_BOTH 和 PDO::FETCH_OBJ，创建供用来访问的对象变量名
+ *          PDO::FETCH_NUM：返回一个索引为以0开始的结果集列号的数组
+ *          PDO::FETCH_OBJ：返回一个属性名对应结果集列名的匿名对象
+ *
+ * @param   integer $cursor_orientation 对于 一个 PDOStatement 对象表示的可滚动游标，该值决定了哪一行将被返回给调用者。
+ *                                      此值必须是 PDO::FETCH_ORI_* 系列常量中的一个，默认为 PDO::FETCH_ORI_NEXT。
+ *                                      要想让 PDOStatement 对象使用可滚动游标，必须在用 PDO::prepare() 预处理SQL语句时，设置 PDO::ATTR_CURSOR 属性为 PDO::CURSOR_SCROLL。
+ *
+ *@param    integer $offset 对于一个 cursor_orientation 参数设置为 PDO::FETCH_ORI_ABS 的PDOStatement 对象代表的可滚动游标，此值指定结果集中想要获取行的绝对行号。
+                            对于一个 cursor_orientation 参数设置为 PDO::FETCH_ORI_REL 的PDOStatement 对象代表的可滚动游标，此值指定想要获取行相对于调用 PDOStatement::fetch() 前游标的位置
+ * @return  bool 此函数（方法）成功时返回的值依赖于提取类型。在所有情况下，失败都返回 FALSE
+ *
+ */
+$rs = $state->fetch(PDO::FETCH_ASSOC); //一维数组
+
+/**
+ * fetchAll([ int $fetch_style [, mixed $fetch_argument [, array $ctor_args = array() ]]])
+ *
+ * @tip     返回一个包含结果集中所有行的数组
+ * @param   int $fetch_style
+ *          控制下一行如何返回给调用者。此值必须是 PDO::FETCH_* 系列常量中的一个，缺省为 PDO::ATTR_DEFAULT_FETCH_MODE 的值 （默认为 PDO::FETCH_BOTH ）。
+ *          想要返回一个包含结果集中单独一列所有值的数组，需要指定 PDO::FETCH_COLUMN 。通过指定 column-index 参数获取想要的列。
+ *          想要获取结果集中单独一列的唯一值，需要将 PDO::FETCH_COLUMN 和 PDO::FETCH_UNIQUE 按位或。
+ *          想要返回一个根据指定列把值分组后的关联数组，需要将 PDO::FETCH_COLUMN 和 PDO::FETCH_GROUP 按位或。
+ *
+ * @param   mixed $fetch_argument
+ *          根据 fetch_style 参数的值，此参数有不同的意义：
+ *          ◆ PDO::FETCH_COLUMN：返回指定以0开始索引的列。
+ *          ◆ PDO::FETCH_CLASS：返回指定类的实例，映射每行的列到类中对应的属性名。
+ *          ◆ PDO::FETCH_FUNC：将每行的列作为参数传递给指定的函数，并返回调用函数后的结果。
+ *
+ * @param   array   $ctor_args  当 fetch_style 参数为 PDO::FETCH_CLASS 时，自定义类的构造函数的参数。
+ *
+ * @return  mixed   PDOStatement::fetchAll() 返回一个包含结果集中所有剩余行的数组。此数组的每一行要么是一个列值的数组，要么是属性对应每个列名的一个对象。
+ *                  使用此方法获取大结果集将导致系统负担加重且可能占用大量网络资源。与其取回所有数据后用PHP来操作，倒不如考虑使用数据库服务来处理结果集。
+ *                  例如，在取回数据并通过PHP处理前，在 SQL 中使用 WHERE 和 ORDER BY 子句来限定结果。
+ */
+# 获取结果集中所有剩余的行
+$sth = $db->prepare("select * from special_pay WHERE id < 4");
+$sth->execute();
+$rs = $sth->fetchAll(PDO::FETCH_ASSOC); //结果集
+
+# 获取结果集中单独一列的所有值 < 在fetch_style为PDO::FETCH_COLUMN时 >
+$sth = $db->prepare("select * from special_pay WHERE id < 4");
+$sth->execute();
+$rs = $sth->fetchAll(PDO::FETCH_COLUMN,1); //在fetch_style为PDO::FETCH_COLUMN时，返回的某一列的值，从0开始计数；比如`special_pay`有10列，0-9表示具体的列
+//print_r($rs);
+
+# 根据单独一列把所有值分组
+$sth = $db->prepare("select * from special_pay WHERE id < 10");
+$sth->execute();
+$rs = $sth->fetchAll(PDO::FETCH_COLUMN|PDO::FETCH_GROUP,7); //根据第8列的值分组数据
+//print_r($rs);
+
+# 每行结果实例化一个类
+class fruit{
+    public  $payCode;
+}
+$sth = $db->prepare("select pay_code from special_pay WHERE id < 4;");
+$sth->execute();
+$rs = $sth->fetchAll(PDO::FETCH_CLASS,"fruit"); //调用上面的fruit类 实例化查询的值
+
+# 每行调用一次函数
+function st($payCode){
+    return "<span style='color: red'>".$payCode."</span>";
+}
+$sth = $db->prepare("select pay_code from special_pay WHERE id < 4;");
+$sth->execute();
+$rs = $sth->fetchAll(PDO::FETCH_FUNC,"st"); //调用上面的st()方法
+
+/**
+ * fetchColumn([ int $column_number = 0 ])
+ *
+ * @tip     从结果集中的下一行返回单独的一列，如果没有了，则返回 FALSE
+ * @param   int $column_number 你想从行里取回的列的索引数字（以0开始的索引）。如果没有提供值，则 PDOStatement::fetchColumn() 获取第一列。
+ * @return  mixed   PDOStatement::fetchColumn() 从结果集中的下一行返回单独的一列。
+ */
+$sth = $db->prepare("select id,uid,phone,pay_code from special_pay WHERE id < 4;");
+$sth->execute();
+$rs = $sth->fetchColumn(3); //1则返回第一条结果的pay_code
+//print_r($rs);
+
+/**
+ * fetchObject([ string $class_name = "stdClass" [, array $ctor_args ]] )
+ *
+ * @tip     获取下一行并作为一个对象返回，此函数（方法）是使用 PDO::FETCH_CLASS 或 PDO::FETCH_OBJ 风格的 PDOStatement::fetch() 的一种替代。
+ * @param   string $class_name  创建类的名称
+ * @param   array  $ctor_args   此数组的元素被传递给构造函数
+ * @return  mixed  返回一个属性名对应于列名的所要求类的实例， 或者在失败时返回 FALSE
+ *
+ */
+class std{
+    public $pay_code;
+}
+$st = $db->prepare("select pay_code from special_pay WHERE id = 1");
+$st->execute();
+$rs = $st->fetchObject("std");
+//print_r($rs);
+
+/**
+ * getAttribute(int $attribute)
+ *
+ * @tip     检索一个语句的属性
+ * @return  mixed 返回属性值
+ */
+$st = $db->prepare("select pay_code from special_pay WHERE id = 1");
+//$rs = $st->getAttribute(PDO::ATTR_CURSOR_NAME); //可能会出现当前的属性值不支持此函数的问题
+
+
+/**
+ * setAttribute( int $attribute , mixed $value )
+ *
+ * 给语句设置一个属性。当前，没有通用的属性可以设置，只有驱动特定的属性：
+ *    PDO::ATTR_CURSOR_NAME （Firebird 和 ODBC 特性）： 为 UPDATE ... WHERE CURRENT OF 设置游标名称
+ *
+ * @return  bool 成功时返回 TRUE， 或者在失败时返回 FALSE
+ */
+$st->setAttribute($attribute,$value);
+
+
+
+/**
+ * getColumnMeta(int $column)
+ *
+ * @tip     返回结果集中一列的元数据,检索一个在结果集中以0开始索引的列的元数据作为一个关联数组
+ * @param   int $columnIndex    结果集中以0开始索引的列
+ *
+ * @return  array
+ *          ◆ native_type	用于表示列值的 PHP 原生类型。
+ *          ◆ driver:decl_type	在数据库中用于表示列值的 SQL 类型。如果结果集中的列是一个函数的结果，则该值不能被 PDOStatement::getColumnMeta() 返回。
+ *          ◆ flags	任何设置于此列的标记。
+ *          ◆ name	通过数据库返回的列名。
+ *          ◆ table	通过数据库返回的该列的表名
+ *          ◆ len	该列的长度。除浮点小数外通常为 -1
+ *          ◆ precision	该列的数值精度。除浮点小数外通常为 0 。
+ *          ◆ pdo_type	以 PDO::PARAM_* 常量为代表的列类型。
+ *
+ * @notice  1.此函数是实验性的。此函数的表象，包括名称及其相关文档都可能在未来的 PHP 发布版本中未通知就被修改。使用本函数风险自担 。
+ *          2.并非所有 PDO 驱动都支持 PDOStatement::getColumnMeta()
+ */
+$st = $db->prepare("select id,uid,phone,pay_code from special_pay WHERE id < 6");
+$st->execute();
+$rs = $st->getColumnMeta(3);
+
+/**
+ * rowCount(void)
+ * @tip     返回受上一个 SQL 语句影响的行数；返回上一个由对应的 PDOStatement 对象执行DELETE、 INSERT、或 UPDATE 语句受影响的行数
+ *          如果上一条由相关 PDOStatement 执行的 SQL 语句是一条 SELECT 语句，有些数据可能返回由此语句返回的行数。但这种方式不能保证对所有数据有效，且对于可移植的应用不应依赖于此方式
+ * @return  int 行数
+ */
+$st = $db->prepare("select id,uid,phone,pay_code from special_pay WHERE id < 6");
+$st->execute();
+$rs = $st->rowCount();
+
+/**
+ * ● setFetchMode(  int $mode )
+ * ● setFetchMode(  int $PDO::FETCH_COLUMN , int $colno )
+ * ● setFetchMode(  int $PDO::FETCH_CLASS , string $classname , array $ctorargs )
+ * ● setFetchMode( int $PDO::FETCH_INTO , object $object )
+ *
+ * @tip     为语句设置默认的获取模式
+ * @param   int $mode   获取模式必须是 PDO::FETCH_* 系列常量中的一个
+ * @param   int $colno  列号
+ * @param   string  $class_name 类名
+ * @param   array   $ctorargs   构造函数的参数（选择FETCH_CLASS时）
+ * @param   object  $object     对象
+ * @return  bool    成功时返回 TRUE， 或者在失败时返回 FALSE
+ */
+$st = $db->prepare("select id,uid,phone,pay_code from special_pay WHERE id < 4");
+$st->execute();
+$st->setFetchMode(PDO::FETCH_ASSOC); //相当于提前设置了返回mode值
+$rs = $st->fetchAll();
+print_r($rs);
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> PDOStatement类 E n d <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
