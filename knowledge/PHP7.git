@@ -133,16 +133,16 @@
         };
 
         // 闭包函数绑定到类 A 上
-        $getX = $getXCB->bindTo(new A, 'A');
+        $getX = $getXCB->bindTo(new A, 'A'); //new A 相当于$this , 第二个参数传递字符串或者 new A() 意思是想A类的作用域赋给闭包
 
-        echo $getX();
+        echo $getX();  //相当于执行匿名函数
         print(PHP_EOL);
 
         // PHP 7+ 代码
         $getX = function() {
             return $this->x;
         };
-        echo $getX->call(new A);
+        echo $getX->call(new A); // 将闭包函数绑定到类A上并且将类A的作用域绑定到闭包上，即闭包可以访问类A的私有成员变量
 
 
     〓 实例：
@@ -316,7 +316,27 @@
 
 ▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅
 
-12.PHP 7 use语句
+12.PHP 7 错误处理
+
+    PHP 7 改变了大多数错误的报告方式。不同于 PHP 5 的传统错误报告机制，现在大多数错误被作为 Error 异常抛出。
+
+    这种 Error 异常可以像普通异常一样被 try / catch 块所捕获。如果没有匹配的 try / catch 块， 则调用异常处理函数（由 set_exception_handler() 注册）进行处理。
+    如果尚未注册异常处理函数，则按照传统方式处理：被报告为一个致命错误（Fatal Error）。
+
+    Error 类并不是从 Exception 类 扩展出来的，所以用 catch (Exception $e) { ... } 这样的代码是捕获不到 Error 的。
+    你可以用 catch (Error $e) { ... } 这样的代码，或者通过注册异常处理函数（ set_exception_handler()）来捕获 Error。
+
+    ★ Error 异常层次结构
+        ◆ArithmeticError
+        ◆AssertionError
+        ◆DivisionByZeroError
+        ◆ParseError
+        ◆TypeError
+
+    Exception
+        ...
+
+
 
     〓 实例：
         class MathOperations
