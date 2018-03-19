@@ -147,7 +147,7 @@ $stmt->bindColumn(1,$uid);
 $stmt->bindColumn(2,$phone);
 # 通过列名绑定
 $stmt->bindColumn("product_detail",$productDetail);
-
+# while() + $stmt->fetch() 可以循环的取出数据库记录，直到条件结束
 while($row = $stmt->fetch(PDO::FETCH_BOUND)){
     $data = $uid . "\t" . $phone . "\t" . $productDetail . "\r\n";
     print $data;
