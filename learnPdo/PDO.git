@@ -39,7 +39,7 @@ $resPrepare = $stateObj->fetchAll();
 
 $stateObj = $dh->prepare("select * from `special_pay` WHERE `id` = ?;");
 $stateObj->execute(array(40));
-$resPrepare = $stateObj->fetchAll();
+$resPrepare = $stateObj->fetchAll(); //返回一个二维数组
 
 # quote()测试
 $resQuote = $dh->quote("test_string");
