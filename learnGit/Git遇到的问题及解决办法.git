@@ -1,0 +1,7 @@
+★ git pull的时候遇到这样的问题：
+    The following untracked working tree files would be overwritten by merge balabala...
+
+    解决办法：
+        $cgit clean -d -fx
+    备注：会删除掉没有add到仓库的文件，操作记得慎重，以免改动文件的丢失。本质上就是操作仓库中没有被追踪的本地文件
+
