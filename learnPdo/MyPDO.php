@@ -27,25 +27,28 @@ class MyPDO
     // 排除写入数据库的数组，接收一个一维数组索引数组
     protected $exceptFields = array();
     // 数据库编码
-    protected $charset = "UFT8";
+    protected $charset = "utf8";
     // 默认的pdo连接options数据选项
     protected $options = [];
     # PDO连接
     private static $pdoCh = null;
+
+    # table数据表
+    private $table = "";
     # 最后执行的sql语句
     private $lastSql = "";
     # where条件
-    private $where = null;
+    private $where = "";
     # group条件
-    private $group = null;
+    private $group = "";
     # limit条件
-    private $limit = null;
+    private $limit = "";
     # field条件
-    private $fields = null;
+    private $fields = "";
     # order条件
-    private $order = null;
-    # table数据表
-    private $table = null;
+    private $order = "";
+    # having条件
+    private $having = "";
 
     /**
      * 初始化，连接数据库
@@ -87,6 +90,7 @@ class MyPDO
                 "file" => $exception->getFile(),
                 "line" => $exception->getLine(),
             );
+            print_r($errArr);
             //遇到连接报错，则数据提示json
             $this->_jsonPrint($errArr);
 
@@ -178,8 +182,10 @@ class MyPDO
      * @return  $this 返回自己的实例对象
      */
     public function limit($offset,$length=null){
-        //判断第二个参数是否存在，若不存在，则直接使用第一个参数作为limit；若存在，则使用二个参数拼接作为limit
-        $this->limit = is_null($length) ? $offset : $offset.','.$length;
+        if(empty($offset))
+            $this->limit = "";
+        else
+            $this->limit = is_null($length) ? $offset : $offset.','.$length; //判断第二个参数是否存在，若不存在，则直接使用第一个参数作为limit；若存在，则使用二个参数拼接作为limit
         return $this;
     }
 
@@ -203,12 +209,27 @@ class MyPDO
     {
         //获取where的字符串
         $whereString = $this->_parseWhere($this->where);
-        //获取操作的表名
-        $table = $this->table;
-        //获取查询的字段
-        $fields = $this->_parseFields($this->fields) ? $this->_parseFields($this->fields) : "*";
+        //获取操作的table表名
+        $tableString = $this->table;
+        //获取查询的fields字段
+        $fieldsString = $this->_parseFields($this->fields) ? $this->_parseFields($this->fields) : "*";
+        //获取查询的order
+        $orderString = $this->_parseOrder($this->order);
+        //获取group
+        $groupString = $this->_parseGroup($this->group);
+        //获取limit
+        $limitString = $this->_parseLimit($this->limit);
 
-        $sql = "select {$fields} from {$table} ".$whereString;
+        $sql = "select {$fieldsString} from {$tableString} {$whereString} {$groupString} {$orderString} {$limitString}";
+
+        # 调试模式
+        if(isset($_REQUEST["debug"]) && $_REQUEST["debug"] == 1){
+            echo "<hr />";
+            echo $sql,"<br />";
+            echo "<hr />";
+            exit;
+        }
+
         $this->lastSql = $sql;
         $pdoSmt = self::$pdoCh->prepare($sql);
         $pdoSmt->execute() or die(print_r($pdoSmt->errorInfo(),true));
@@ -393,7 +414,7 @@ class MyPDO
                     default:
                         die("where条件 `{$_exp}` 解析出错，请核对条件格式！");
                 }
-                }
+            }
             $whereCount --;
         }
 
@@ -414,22 +435,63 @@ class MyPDO
         return $fieldsString;
     }
 
-
+    /**
+     * 排序如果没有指定desc或者asc排序规则的话，默认为asc
+     * @param  string|array $order
+     *         ① 字符串格式，如：order("id desc") / order("id desc,age (asc)")
+     *         ② 数组格式，如：array('id'=>'desc','age') //如果是key=>val形式，则使用val进行排序，索引数组则默认为：asc，多个字段拼接排序
+     * @return  string
+     */
     private function _parseOrder($order)
     {
-        
+        if(empty($order)) return "";
+        $orderString = "ORDER BY ";
+        if(is_string($order)) return $orderString.$order;
+        # 解析数组格式的参数：array('id'=>'desc','age')
+        //也就是说：1、键值对，key是字段名，val是排序值； 2、索引数组，key是数字（可忽略），val是字段名
+        foreach ($order as $_field => $_sort){
+            $_field = trim($_field,'`');
+            $orderString .= !is_numeric($_field) ? "`{$_field}` {$_sort}," : "`{$_field}`,";
+        }
+
+        return trim($orderString,',');
     }
 
+    /**
+     * 此方法在limit()方法中已经解析过了
+     * @param $limit
+     * @return string
+     */
     private function _parseLimit($limit)
     {
-
+        if(empty($limit)) return "";
+        $limitString = "LIMIT ".$limit;
+        return $limitString;
+    }
+    /**
+     * @param string|array $group 按字段分组
+     *        ① 字符串格式，如：group('name,age')；
+     *        ② 数组格式，如：group(array('name','age','gender'...))； //使用implode连接
+     * @return string
+     */
+    private function _parseGroup($group)
+    {
+        if(empty($group)) return "";
+        $groupString = "GROUP BY ";
+        #字符串直接返回
+        if(is_string($group)) return $groupString.trim($group);
+        # 解析数组
+        foreach ($group as $_field){
+            $groupString .=  "`".trim($_field)."`,";
+        }
+        return trim($groupString,",");
     }
 
-    private function _parseGroup($group)
+    private function _parseHaving($having)
     {
 
     }
-    
+
     /**
      * 获取数组的维度
      * @param array $array
@@ -445,7 +507,7 @@ class MyPDO
         }
         return $depth;
     }
-    
+
     /**
      * 传入数组，以json格式打印
      * @param array $array
