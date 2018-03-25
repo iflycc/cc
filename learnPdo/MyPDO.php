@@ -202,7 +202,17 @@ class MyPDO
     }
 
     /**
-     * SELECT操作
+     * having条件，目前只支持字符串形式
+     * @param $having
+     * @return $this
+     */
+    public function having($having)
+    {
+        $this->having = $having;
+        return $this;
+    }
+    /**
+     * SELECT操作（查询集合，fetchAll）
      * @return array
      */
     public function select()
@@ -219,8 +229,10 @@ class MyPDO
         $groupString = $this->_parseGroup($this->group);
         //获取limit
         $limitString = $this->_parseLimit($this->limit);
+        //获取having
+        $havingString = $this->_parseHaving($this->having);
 
-        $sql = "select {$fieldsString} from {$tableString} {$whereString} {$groupString} {$orderString} {$limitString}";
+        $sql = "SELECT {$fieldsString} FROM {$tableString}{$whereString}{$groupString}{$havingString}{$orderString}{$limitString}";
 
         # 调试模式
         if(isset($_REQUEST["debug"]) && $_REQUEST["debug"] == 1){
@@ -237,10 +249,49 @@ class MyPDO
         return $result;
     }
 
-    public function find()
+    /**
+     * 只查询一条数据
+     * @param int $primaryId
+     * @return array
+     */
+    public function find($primaryId = 0)
     {
+        # 检测$primaryId必须为整数
+        is_numeric($primaryId) or die(print_r(array("line"=>__LINE__,"file"=>dirname(__FILE__),"msg"=>"Err,{$primaryId} must be integer.")));
+        //获取where的字符串
+        $whereString = $this->_parseWhere($this->where);
+        //当传递了PrimaryKey的时候
+        if($primaryId > 0){
+            $whereString = empty($whereString) ? " WHERE `id` = {$primaryId} " : $whereString."AND `id` = {$primaryId} ";
+        }
+        //获取操作的table表名
+        $tableString = $this->table;
+        //获取查询的fields字段
+        $fieldsString = $this->_parseFields($this->fields) ? $this->_parseFields($this->fields) : "*";
+        //获取查询的order
+        $orderString = $this->_parseOrder($this->order);
+        //获取group
+        $groupString = $this->_parseGroup($this->group);
+        //获取limit
+        $limitString = " LIMIT 1 ";
+        //获取having
+        $havingString = $this->_parseHaving($this->having);
 
+        $sql = "SELECT {$fieldsString} FROM {$tableString}{$whereString}{$groupString}{$havingString}{$orderString}{$limitString}";
 
+        # 调试模式
+        if(isset($_REQUEST["debug"]) && $_REQUEST["debug"] == 1){
+            echo "<hr />";
+            echo $sql,"<br />";
+            echo "<hr />";
+            exit;
+        }
+
+        $this->lastSql = $sql;
+        $pdoSmt = self::$pdoCh->prepare($sql);
+        $pdoSmt->execute() or die(print_r($pdoSmt->errorInfo(),true));
+        $result = $pdoSmt->fetchAll(PDO::FETCH_ASSOC);
+        return $result;
     }
 
     public function add()
@@ -346,9 +397,14 @@ class MyPDO
      */
     private function _parseWhere($where)
     {
+        if(empty($where)) return "";
         $whereString = "WHERE ";
         //字符串直接返回，不解析
-        if(is_string($where)) return $where;
+        if(is_string($where)) {
+            # 解析完成，将$this->where清空，避免影响下一次sql执行
+            $this->where = "";
+            return " ".$whereString.$where." ";
+        }
         //--------------------------------------------------- 解析数组 --------------------------------------------------
         $whereCount = count($where) - 1;//获取数组的长度，用于判断`AND`条件的个数
         foreach ($where as $_field => $_item){
@@ -417,8 +473,9 @@ class MyPDO
             }
             $whereCount --;
         }
-
-        return $whereString;
+        # 解析完成，将$this->where清空，避免影响下一次sql执行
+        $this->where = "";
+        return " ".trim($whereString)." ";
     }
 
     /**
@@ -429,10 +486,17 @@ class MyPDO
      */
     private function _parseFields($fields)
     {
-        if(is_string($fields) or is_null($fields)) return $fields;
-        # 解析数组形式
-        $fieldsString = '`'.implode('`,`',$fields).'`'; //转换成`id`,`name`,`age`...这种格式
-        return $fieldsString;
+        if(empty($fields)) return "";
+        if(is_string($fields)) {
+            $fieldsString =  $fields;
+        }
+        else{
+            # 解析数组形式
+            $fieldsString = '`'.implode('`,`',$fields).'`'; //转换成`id`,`name`,`age`...这种格式
+        }
+        # 解析完成，将$this->fields清空，避免影响下一次sql执行
+        $this->fields = "";
+        return " ".trim($fieldsString)." ";
     }
 
     /**
@@ -446,15 +510,21 @@ class MyPDO
     {
         if(empty($order)) return "";
         $orderString = "ORDER BY ";
-        if(is_string($order)) return $orderString.$order;
-        # 解析数组格式的参数：array('id'=>'desc','age')
-        //也就是说：1、键值对，key是字段名，val是排序值； 2、索引数组，key是数字（可忽略），val是字段名
-        foreach ($order as $_field => $_sort){
-            $_field = trim($_field,'`');
-            $orderString .= !is_numeric($_field) ? "`{$_field}` {$_sort}," : "`{$_field}`,";
+        if(is_string($order)) {
+            $orderString =  $orderString.$order;
         }
-
-        return trim($orderString,',');
+        else{
+            # 解析数组格式的参数：array('id'=>'desc','age')
+            //也就是说：1、键值对，key是字段名，val是排序值； 2、索引数组，key是数字（可忽略），val是字段名
+            foreach ($order as $_field => $_sort){
+                $_field = trim($_field,'`');
+                $orderString .= !is_numeric($_field) ? "`{$_field}` {$_sort}," : "`{$_field}`,";
+            }
+            $orderString =  trim($orderString,',');
+        }
+        # 解析完成，将$this->order 清空，避免影响下一次sql执行
+        $this->order = "";
+        return " ".trim($orderString)." ";
     }
 
     /**
@@ -466,7 +536,9 @@ class MyPDO
     {
         if(empty($limit)) return "";
         $limitString = "LIMIT ".$limit;
-        return $limitString;
+        # 解析完成，将$this->order 清空，避免影响下一次sql执行
+        $this->limit = "";
+        return " ".trim($limitString)." ";
     }
     /**
      * @param string|array $group 按字段分组
@@ -479,17 +551,34 @@ class MyPDO
         if(empty($group)) return "";
         $groupString = "GROUP BY ";
         #字符串直接返回
-        if(is_string($group)) return $groupString.trim($group);
-        # 解析数组
-        foreach ($group as $_field){
-            $groupString .=  "`".trim($_field)."`,";
+        if(is_string($group)) {
+            $groupString =  $groupString.trim($group);
         }
-        return trim($groupString,",");
+        else{
+            # 解析数组
+            foreach ($group as $_field){
+                $groupString .=  "`".trim($_field)."`,";
+            }
+            $groupString = trim($groupString,",");
+        }
+        # 解析完成，将$this->group 清空，避免影响下一次sql执行
+        $this->group = "";
+        return " ".trim($groupString)." ";
     }
 
+    /**
+     * 解析having条件 目前只支持string形式
+     * @param $having
+     * @return string
+     */
     private function _parseHaving($having)
     {
-
+        if(empty($having)) return "";
+        is_string($having)  or die(print_r(array("line"=>__LINE__,"file"=>dirname(__FILE__),"msg"=>"Err, Param：{$having} only expected STRING")));
+        $havingString = "HAVING ".$having;
+        # 解析完成，将$this->having 清空，避免影响下一次sql执行
+        $this->having = "";
+        return " ".trim($havingString)." ";
     }
 
     /**
