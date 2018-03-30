@@ -12,6 +12,8 @@ class MyPDO
 {
     // 当前数据库的操作对象
     protected $db = null;
+    // 当前表的主键,默认为 `id`
+    protected $primaryKey = "id";
     // 表前缀
     protected $tablePrefix = "";
     // 表名 （不包含表前缀）
@@ -257,7 +259,7 @@ class MyPDO
     public function find($primaryId = 0)
     {
         # 检测$primaryId必须为整数
-        is_numeric($primaryId) or die(print_r(array("line"=>__LINE__,"file"=>dirname(__FILE__),"msg"=>"Err,{$primaryId} must be integer.")));
+        is_numeric($primaryId) or die(print_r(array("line"=>__LINE__,"file"=>dirname(__FILE__),"msg"=>"param {$primaryId} must be integer."),true));
         //获取where的字符串
         $whereString = $this->_parseWhere($this->where);
         //当传递了PrimaryKey的时候
@@ -290,23 +292,115 @@ class MyPDO
         $this->lastSql = $sql;
         $pdoSmt = self::$pdoCh->prepare($sql);
         $pdoSmt->execute() or die(print_r($pdoSmt->errorInfo(),true));
-        $result = $pdoSmt->fetchAll(PDO::FETCH_ASSOC);
+        $result = $pdoSmt->fetch(PDO::FETCH_ASSOC);
         return $result;
     }
 
-    public function add()
+    /**
+     * 插入一条记录，以一维数组键值对形式传参（key：字段名，value：字段值）
+     * @param array $data
+     * @param bool $replace
+     * @return int 返回插入的最后一条记录ID值
+     */
+    public function add(array $data,$replace= false)
     {
+        # 判断是否为替换
+        $insertType = boolval($replace) ?  "REPLACE " : "INSERT ";
+        $sql = "{$insertType} INTO {$this->table} SET " ;
+        foreach ($data as $_field => $_val){
+            $_field = trim($_field,'`');
+            $_val = trim($_val);
+            $sql .= "`{$_field}` = '{$_val}',";
+        }
+        $sql = trim($sql,',');
+        $this->lastSql = $sql;
+        $pdoSmt = self::$pdoCh->prepare($sql);
+        $pdoSmt->execute() or die(print_r(self::$pdoCh->errorInfo(),true));
+        $lastInsertId = self::$pdoCh->lastInsertId();
+        return $lastInsertId;
 
     }
 
-    public function update()
+    /**
+     * 一次性插入多条记录，参数格式：二维数组，其中二维数组中的每个元素为一个键值对，需严格对应。 如：
+     *      array(
+    array(name => james,age=>18...),
+    array(name => Kobe,age=>22...),
+     *          )
+     * @param array $data
+     * @param bool $replace
+     * @return int 返回插入数据的条数
+     */
+    public function addAll(array $data,$replace= false)
     {
+        # 判断是否为替换
+        $insertType = boolval($replace) ?  "REPLACE " : "INSERT ";
+        $sqlHead = "{$insertType} INTO {$this->table} " ;
 
+        # 循环拼接sql执行语句 --- $item是$data的元素
+        $sqlFields = $sqlValues = "";
+        array_map(function($item) use (&$sqlFields,&$sqlValues){
+            ksort($item); //按键值排序，不能直接sort()否则会丢失key
+            $_fields = array_keys($item);
+            $_values = array_values($item);
+            $sqlFields = '(`'.implode('`,`',$_fields).'`) VALUES ';
+            $sqlValues .= '('.implode(',',$_values).'),';
+        },$data);
+
+        $sqlValues = trim($sqlValues,',');
+        $sql = $sqlHead.$sqlFields.$sqlValues;
+        $this->lastSql = $sql;
+        $pdoSmt = self::$pdoCh->prepare($sql);
+        $pdoSmt->execute() or die(print_r(self::$pdoCh->errorInfo(),true));
+        $insertRows = $pdoSmt->rowCount(); //插入数据库的记录条数
+        return $insertRows;
     }
 
-    public function delete()
+    /**
+     * 更新操作，参数格式：一维键值对，key：字段名，value：字段值
+     * @param array $data
+     * @return int
+     */
+    public function update(array $data)
     {
+        $where = $this->where ? $this->where : " WHERE 1;";//
+        $sql = "UPDATE {$this->table} SET ";
+        # 循环拼接sql语句
+        array_walk($data,function($val,$field) use (&$sql){
+            $field = "`".trim($field,'`')."`";
+            $sql .= "{$field} = '{$val}',";
+        });
+        $sql = trim($sql,',') . $where;
+        $this->lastSql = $sql;
+        $pdoSmt = self::$pdoCh->prepare($sql);
+        $pdoSmt->execute() or die(print_r(self::$pdoCh->errorInfo(),true));
+        $updateRows = $pdoSmt->rowCount();
+        return $updateRows;
+    }
 
+    /**
+     * 删除操作
+     * @param int $primaryId
+     * @return int
+     */
+    public function delete($primaryId = 0)
+    {
+        # 检测$primaryId必须为整数
+        is_numeric($primaryId) or die(print_r(array("line"=>__LINE__,"file"=>dirname(__FILE__),"msg"=>"Err,{$primaryId} must be integer."),true));
+        //获取where的字符串
+        $whereString = $this->_parseWhere($this->where);
+        //当传递了PrimaryKey的时候
+        if($primaryId > 0){
+            $whereString = empty($whereString) ? " WHERE `id` = {$primaryId} " : $whereString."AND `id` = {$primaryId} ";
+        }
+        $sql = "DELETE FROM {$this->table}".$whereString;
+        !empty($whereString) or die(print_r(array("line"=>__LINE__,"file"=>dirname(__FILE__),"msg"=>"'{$sql}' is forbid. "),true));
+
+        $this->lastSql = $sql;
+        $pdoSmt = self::$pdoCh->prepare($sql);
+        $pdoSmt->execute() or die(print_r(self::$pdoCh->errorInfo(),true));
+        $updateRows = $pdoSmt->rowCount();
+        return $updateRows;
     }
 
     /**
@@ -586,7 +680,7 @@ class MyPDO
      * @param array $array
      * @return int|mixed
      */
-    private function _getArrayDepth(array $array)
+    public function _getArrayDepth(array $array)
     {
         $depth = 1; //存储数组的维度,默认为：1
         foreach ($array as $item){
