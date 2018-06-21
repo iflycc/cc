@@ -1,0 +1,30 @@
+1.tr
+    ◆ tr 命令可以用来删除一段文本信息中的某些文字。或者将其进行转换。
+
+    $ tr [option]...SET1 [SET2]
+        ● -d 删除和set1匹配的字符，注意不是全词匹配也不是按字符顺序匹配
+        ● -s 去除set1指定的在输入文本中连续并重复的字符
+
+    〓 示例：
+        $ echo 'hello world' | tr -d 'olh'
+            -- 'e wrd'    // 删除 字符串'hello world'中全部的 'o','l','h'字符
+
+        $ echo 'hello' | tr -s 'l'
+            -- 'helo'     // 将"hello" 中的ll,去重为一个l
+
+        $ echo 'hello world' | tr '[a-z]' '[A-Z]'
+            -- 'HELLO WORLD' // 将字符串的小写字符全部转为大写
+
+2.col
+    ◆ col 命令可以将Tab换成对等数量的空格键，或反转这个操作。
+
+    $ col [option]
+         ● -x 将Tab转换为空格
+         ● -h 将空格转为为Tab（默认选项）
+
+3.join
+
+
+
+
+

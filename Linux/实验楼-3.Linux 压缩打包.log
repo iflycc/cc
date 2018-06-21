@@ -1,0 +1,59 @@
+★ 主要三种压缩方式：zip 、 rar 、 tar
+
+
+1.zip方式
+   @ zip -1 -r -q -l -e -o demo.zip  filePath  -x filePath/*.zip
+
+        ◆ -[1-9] ：表示压缩级别，1压缩最低但是压缩速度最快，9表示压缩级别最高但是速度最慢
+        ◆ -r ：递归压缩文件及其子目录
+        ◆ -q ：安静模式，即不向屏幕输出信息
+        ◆ -l ：比如换行符（为不可见字符），在 Windows 为 CR+LF（Carriage-Return+Line-Feed：回车加换行），而在 Linux/Unix 上为 LF（换行），所以如果在不加处理的情况下，在 Linux 上编辑的文本，在 Windows 系统上打开可能看起来是没有换行的。
+        ◆ -e ：加上密码压缩
+        ◆ -o ：表示输出文件，其后面须紧跟输出的文件名
+        ◆ -x ：排除指定文件路径中的其他 .zip文件
+        ◆ filePath ： 文件路径，必须是绝对路径
+
+   @ unzip demo.zip //解压文件夹
+   @ unzip -q demo.zip -d demoDir //使用安静模式将文件夹解压到指定目录，若demoDir不存在则自动创建
+   @ unzip -l demo.zip  //只查看不解压压缩包
+
+2.rar方式
+    @ rar a demo.rar demoDir //添加当前目录demoDir到归档文件中，不存在则自动创建
+        ◆ a ：添加文件到压缩文件
+    @ rar d demo.rar target.rar //删除压缩文件demo.rar中的target.rar
+        ◆ d ：删除
+    @ rar l demo.rar //查看不解压文件
+    @ unrar x demo.rar //全路径解压
+    @ unrar e demo.rar tmp/   //去掉路径解压
+
+3.tar方式
+    @ tar -cf demo.tar target //将目标文件target压缩成demo.tar
+         ◆ -c ：表示创建一个tar包文件
+         ◆ -f ：用于指定创建文件名，文件名必须紧跟-f之后
+    @ tar -xf demo.tar -C demoDir // 将demo.tar解压到指定的demoDir文件夹中，demoDir必须存在
+         ◆ -x ：解包
+    @ tar -tf demo.tar //只查看不解压
+
+    〓 -z：针对 *.tar.gz
+    @ tar -zcf demo.tar.gz demoFileOrDir //gzip压缩
+    @ tar -zxf demo.tar.gz //gzip解压
+
+    压缩文件格式	参数
+    *.tar.gz	-z
+    *.tar.xz	-J
+    *tar.bz2	-j
+
+
+★ 总结：
+    zip：
+        ۞ 打包：zip something.zip something （目录请加r）
+        ۞ 解包：unzip something
+
+    tar：
+        ۞ 打包：tar -zcvf something.tar.gz something
+        ۞ 解包：tar -zxvf something.tar.gz -C demoPath （-C 指定路径）
+
+
+
+
+
