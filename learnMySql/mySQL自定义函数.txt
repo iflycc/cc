@@ -1,0 +1,48 @@
+■■■ 函数的定义
+    函数存储着一系列sql语句，调用函数就是一次性执行这些语句。所以函数可以降低语句重复。
+   【但注意的是函数注重返回值，不注重执行过程，所以一些语句无法执行。所以函数并不是单纯的sql语句集合。】
+
+    函数与存储过程的区别：函数值允许返回一个标量值，不允许返回一个结果集。函数强调返回值，不允许返回多个值，即使是查询语句。
+
+    ▃▃▃▃相关说明:▃▃▃▃
+        1.函数名：应该合法的标识符，并且不应该与已有的关键字冲突。一个函数应该属于某数据库，
+          可以使用db_name.funciton_name的形式执行当前函数所属数据库，否则默认为当前数据库。
+        2.参数列表：可以有一个或者多个函数参数，甚至是没有参数也是可以的。对于每个参数，由参数名和参数类型组成。
+        3.返回值：指明返回值类类型
+        4.函数体：自定义函数的函数体由多条可用的MySQL语句，流程控制，变量声明等语句构成。需要指明的是函数体中一定要含有return 返回语句。
+
+■■■ 语法：
+    create function 函数名 ([参数列表]) returns 数据类型
+        begin
+            sql语句;
+            return 值;
+        end;
+
+■■■ 示例：
+    # 最简单的只有一条sql的函数
+        create function func_1() returns int return 666;
+        --> 调用：select func_();
+
+    # 无参函数
+        create function func_2() returns varchar(64)
+            begin
+                declare c varchar(64) default "";
+                select `remark` into c from `user` where `name` = 'James' limit 1;
+                return c;
+            end;
+         --> 调用：select func_2();
+
+    # 带参函数
+        create function func_3(x varchar(64)) returns varchar(64)
+            begin
+                declare _condition varchar(64) default "LilyD";
+                declare _return varchar(64)  default "";
+                if _condition = x then
+                    insert into `user` values (null,'LilyD',26,'llyD','165,HF,my sunshine girl.');
+                    set _return = 'insert';
+                else
+                    update `user` set `remark` = 'still the prefect one' where `name` like "loop%";
+                    set _return = 'update';
+                return _return;
+            end;
+        --> 调用：select func_3('LilyD') as resp;
