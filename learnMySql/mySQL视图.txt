@@ -1,0 +1,40 @@
+■■■ 定义
+    视图就是一条select语句执行后返回的结果集。
+
+■■■ 特性
+    视图是对若干张基本表的引用，一张虚表，查询语句执行的结果，不存储具体的数据（基本表数据发生了变化，视图也会跟着改变）。
+    可以跟基本表一样，进行增删改查操作。
+
+■■■ 作用
+    方便操作，特别是查询操作，减少复杂的SQL语句，增强可读性；
+    更加安全，数据库授权命令不能限定到特定的行和特定的列，但视图实现。
+
+■■■ 使用场合
+    权限控制的时候，不希望用户看到访问表中的某些敏感信息列，比如salary...
+    关键信息来源于多个复杂关联表，可以创建视图提取我们需要的信息，简化操作。
+
+■■■ 语法
+    CREATE OR REPLACE VIEW view_name
+    AS
+      select_statement
+      WITH CHECK OPTION;
+
+    ★★★  将分号(;)放在WITH CHECK OPTION子句的末尾，而不是在select语句的末尾来定义视图。
+
+
+✈ with check option 简单理解：
+    如果加了 with check option 的约束，则是要求比如根据视图插入记录时等一些操作，必须要满足视图的查询条件。
+
+    ✔ 示例：
+        create or replace view _v1 as
+        select * from `user` where age <= 30
+        with check option;
+
+        # 根据视图写入数据
+            insert into _v1 set name = 'James' and age = 31;  --- 报错，因为age=31 不满足视图创建条件：<= 30
+
+    ✔ 根据视图创建的视图：
+        create or replace _v2 as
+        select * from _v1 where age <= 18
+        with local check option;   ---会检测操作_v2视图时是否满足_v1的创建条件
+

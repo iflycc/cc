@@ -1,0 +1,188 @@
+★ Artisan命令
+
+    命令                              	说明
+    php artisan key:generate	    生成 App Key
+    php artisan make:controller	    生成控制器     -- php artisan make:controller TestController
+    php artisan make:model	        生成模型
+    php artisan make:policy	        生成授权策略
+    php artisan make:seeder	        生成 Seeder 文件
+    php artisan migrate	            执行迁移
+    php artisan migrate:rollback	回滚迁移
+    php artisan migrate:refresh	    重置数据库
+    php artisan db:seed	            填充数据库
+    php artisan tinker	            进入 tinker 环境
+    php artisan route:list	        查看路由列表
+
+
+★ 路由
+    路由文件将会被 App\Providers\RouteServiceProvider 类加载
+
+    【5.1】 路由文件位置：app/Http/route.php
+    【5.5】 路由文件位置：routes/web.php
+            -- routes下面还有好几个脚本，其中route.php是默认路由脚本，在其中建立路由可省略'web/'前缀，如：localhost/user
+            -- routes/api.php 也可以建立路由，但是要加'api/'前缀，如：localhost/api/user
+
+    ◆ 示例：
+        Q：在routes/下自定义test.php脚本，并定义相关路由提供访问。
+
+        A：
+            1.建立新的脚本 'routes/test.php'
+            2.在Provider/RouteServiceProvider.php下自定义启动自定义路由脚本的方法如：mapTestRoutes()
+                protect function mapTestRoutes()
+                {
+                    Route::prefix('test')
+                    ->middleware('test')      ———— 如果声明了中间件，则需要在Kernel.php -- protect $middlewareGroups中定义test => [...]
+                }
+            3.在Provider/RouteServiceProvider.php的map()中添加 "mapTestRoutes();" 启动自定义路由
+            4.如在routes/test.php中定义
+                Route::get('t',function(){
+                    return "i am route:t.";
+                });
+
+    ◆ 路由动作：
+        常用类型：GET、POST、PUT、DELETE等
+
+        Route::get('/foo',function(){
+            //匹配get方法的 '/foo'
+        });
+
+        Route::post('/foo',function(){
+            //匹配post方法的 '/foo'
+        });
+
+        Route::put('/foo',function(){
+            //匹配put方法的 '/foo'
+        });
+
+        ...
+
+        ■ match 匹配多种方法
+            Route::match(['get','post'...],'/foo',function(){
+                //匹配get或者post方法
+            });
+
+        ■ any 匹配所有请求
+            Route::any('/foo',function(){
+                //匹配所有请求的 '/foo' 路由
+            });
+
+
+    ◆ 路由参数：
+          〓 1.基础的路由参数
+            Route::get("/name/{name}",function($name){
+                return "i am " . $name;
+            });
+
+            Route::get('name/{name}/age/{age}', function ($name, $age) {
+                return 'I`m '.$name.' ,and I`m '.$age;
+            });
+
+          〓 2.可选参数
+             Route::get('name/{name?}',function($name = 'Tom'){
+                return "Hello!" . $name;
+             });
+
+
+    ◆ 路由命名：
+           所谓命名路由，就是给路由起个名字，这样我们就可以通过这个名字获取到该条路由的相关信息，也更利于后期维护。
+           建议在开发过程中给每个路由命名，使用下面两种方式都可以为一个路由命名。
+
+           〓 两种方式：
+              Route::get('foo',['as' => 'myFoo',function(){...}]);
+
+              Route::get('foo',function(){...})->name('myFoo');
+
+
+    ◆ 路由群组：
+           路由群组允许你共用路由属性，例如：中间件、命名空间等，你可以利用路由群组统一为多个路由设置共同属性，而不需在每个路由上都设置一次。
+           共用属性被指定为数组格式，当作Route::group 方法的第一个参数。
+
+           〓 1：为路由添加中间件
+
+              Route::group(['middleware' => 'auth'],function(){
+                Route::get('foo',function(){...});
+
+                Route::get('name',function(){...});
+              });  //在路由组中的路由都将使用 auth 中间件
+
+           〓 2：为路由群组添加公用命名空间
+
+              Route::group(['namespace'=>'Admin'],function(){
+
+                // 控制器在 App\Http\Controller\Admin 命名空间中
+
+                Route::group(['namespace' => 'User'],function(){
+
+                    // 控制器在 App\Http\Controller\Admin\User 命名空间中
+                });
+              });
+
+
+            〓 3：为路由群组添加公用前缀
+
+              Route::group(['prefix' => 'user'],function(){
+
+                // ...demo/user/name
+                Route::get('name',function(){...});
+
+                // ...demo/user/age
+                Route::get('age',function(){...});
+              });
+
+              # 路由群组添加参数
+              Route::group(['prefix' => 'user/{id}'],function(){
+                 //...demo/user/{id}/name
+                 Route::get('name',function(){...});
+
+                 //...demo/user/{id}/age
+                 Route::get('age',function(){...});
+              });
+
+
+    ◆ 查看路由：
+
+           Route::get('/bar')->name('demoBar');
+
+           Route::get("/demo",function(){
+                // 如果是基础路由是：localhost
+                $url = url('demoBar');      //参数是：路由名
+                $route = route('demoBar');  //参数是：路由名
+
+                $url = "localhost/bar";
+                $route = "localhost/demoBar";
+           });
+
+
+    ◆ 正则表达式限制路由：
+           使用where方法限制参数的形式。where方法接受参数的名称和正则表达式。
+
+           Route::get('name/{name?}',function($name = 'Tom'){
+                return 'hello!' . $name;
+           })->where('name','[A-Za-z]+');
+
+           正确：localhost/name/James
+           错误：localhost/name/55
+
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+★ 控制器
+    示例：Route::get('/user/name','UserController@name');
+
+    ◆ 控制器的命名空间
+        注意到控制器文件中有这么一行代码：namespace App\Http\Controllers;
+        这个目录也是控制器的默认目录，所以我们在 routes.php 文件中引入的时候可以直接使用：
+
+        Route::get('/user/name', 'UserController@name');
+        有一点非常重要，那就是我们在定义控制器路由时，不需要指定完整的控制器命名空间。我们只需要定义「根」命名空间 App\Http\Controllers 之后的部分类名称即可。默认 RouteServiceProvider 会使用路由群组，把 routes.php 文件里所有路由规则都配置了根控制器命名空间。
+
+        现在假如你在 App\Http\Controller 目录下新建了一个 User 文件夹来存放 UserControllser.php。
+        你的 routes.php 文件中就需要这么写：
+        Route::get('/user/name', 'User\UserController@name');
+
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+★ 中间件

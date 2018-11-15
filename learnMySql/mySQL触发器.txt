@@ -1,0 +1,96 @@
+■■■ 定义
+    触发器是一种与表操作有关的数据对象，当触发器所在表上出现指定事件时，调用该对象，即表的操作时间触发表上的触发器执行。
+
+■■■ 创建触发器
+    create trigger `trigger_name`
+        trigger_time
+        trigger_event ON table_name
+        FOR each row
+        trigger_stmt;
+
+    其中：
+        trigger_name : 触发器名，自定义。
+        trigger_time : 标识触发时机，取值为 before 、 after;
+        trigger_event: 标识触发事件，取值为 insert 、update 、delete;
+        table_name   : 标识建立触发器的表名，即在哪张表上建立触发器;
+        trigger_stmt : 触发器程序体，可以是一句SQL语句，或者begin ... end包含多条sql语句；
+
+        由此可见，可建立6种触发器，即：before insert / before update / before delete / after insert / after update / after delete
+
+        另外有一个限制是不能同时在一个表上建立2个相同类型的触发器，因此在一张表上最多建立6个触发器。
+
+■■■ trigger_event 详解
+    mysql除了定义对insert、update、delete基本操作定义之外，还定义了 'load data' / 'replace into'，这两种也可以引起触发器。
+
+    ✔ load data ： 导入数据，相当于一系列insert 操作。
+    ✔ replace into ： 替换插入，相当于先delete后insert
+
+    ✔ insert型触发器：插入某一行时激活触发器，可通过 insert 、 load data 、 replace into 触发；
+    ✔ update型触发器：更改某一行时激活触发器，可通过 update 语句触发；
+    ✔ delete型触发器：删除某一行时激活触发器，可通过 delete、replace语句触发；
+
+■■■ 完整示例
+    # 假设有两个表，班级表`class`（班级号class_id，学生数stu_num），学生表`student`（学号stu_id，所属班级号class_id），需要触发器来更新学生数：
+
+    > ---------------------------------
+       DROP TRIGGER IF EXISTS `tri_st`;
+       DELIMITER $
+       CREATE TRIGGER `tri_st`
+       AFTER INSERT ON `student` FOR EACH ROW
+         BEGIN
+            DECLARE _studentNum INT DEFAULT 0;
+            SET _studentNum = (SELECT COUNT(*) FROM `student` WHERE `class_id` = NEW.`class_id`);  # 根据新写入的记录的班级id统计该id下的全部学生人数
+       	    IF _studentNum=1 THEN # 注意是插入之后
+       			INSERT INTO `class` VALUES(null,1,CONCAT(NEW.`class_id`,'班')); # 新的班级id
+       	    ELSE
+       			 UPDATE `class` SET `stu_num`=_studentNum,`remark`=CONCAT(NEW.`class_id`,'班')  WHERE `id` = NEW.`class_id`; # 根据student表中分配的班级更新班级表中我学生数
+       	    END IF;
+         END $
+       DELIMITER ;
+    > ---------------------------------
+
+■■■ NEW 与 OLD
+    NEW、OLD用来表示触发器所在表中，引起触发器的的那一行数据。
+    具体如下：
+    ✔ insert型触发器：NEW表示将要（before）或者已经（after）插入的数据;
+    ✔ update型触发器：OLD用来表示将要或者已经被修改的原数据，NEW用来表示将要或者已经修改为的新数据；
+    ✔ delete型触发器：OLD用来表示将要或者已经删除的原数据；
+
+    # 使用方法：NEW.columnName
+
+    ★ OLD是只读的，而NEW则可以再触发器中SET赋值，这样不会再次触发触发器，造成循环调用；
+
+
+■■■ 触发器的执行顺序
+    我们建立的数据库一般都是 InnoDB 数据库，其上建立的表是事务性表，也就是事务安全的。这时，若SQL语句或触发器执行失败，MySQL 会回滚事务，有：
+
+    ① 如果 BEFORE 触发器执行失败，SQL 无法正确执行。
+    ② SQL 执行失败时，AFTER 型触发器不会触发。
+    ③ AFTER 类型的触发器执行失败，SQL 会回滚。
+
+▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂
+▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂
+■■■ 触发的利弊
+    ✔  MySQL触发器注意事项
+
+        MySQL触发器使用非常简单，当然其功能也比较有限。当你在项目中大量使用触发器，那么你应该注意以下几点，以避免触发器不按预期效果执行：
+        MySQL触发器能基于行触发，MySQL触发器始终时基于表中的一条记录触发，而不是一组SQL语句。因此，如果需要变动整个数据集而数据集数据量又较大时，
+        触发器效果会非常低。每一个表的一个事件只能定义一个触发器，例如：不能在AFTER INSERT上定义一个以上的触发器。
+
+    ✔  MySQL触发器可能导致的问题
+
+        由于MySQL触发器基于行触发的特性，因此对于批量操作并不适合使用触发器，如：汇总表、缓存表等。触发器使用不当，可能会导致以下问题：
+        一个MySQL触发器可能会关联到另外一张表或几张表的操作。因此，会导致数据库服务器负荷也会相应的增加一倍或几倍，
+        如果出现因为触发器问题导致的性能问题，会很难定位问题位置和原因。
+        在基于锁的操作中，触发器可能会导致锁等待或死锁。触发器执行失败，原来执行的SQL语名也会执行失败。
+        而因为触发器导致的失败结果和失败原因，往往很难排查。
+        由于MySQL触发器的种种问题，要求我们在创建触发器就应该充分考虑。避免使用不合适的触发器，并能对所有触发器有足够的了解，以便问题的定位和排查。
+
+    ✔  MySQL触发器的好处
+
+        对MySQL触发器有足够的认识和了解后，MySQL触发器会给我们带来极大的便利。当实现一些系统约束时，或在实现系统维护及针对操作数据的更新时，
+        使用触发器都非常方便。在之胶我们介绍了MySQL触发器不适合做的一些工作，但MySQL触发器在以下一些应用场景中，会非常实用：
+
+        基于行数据变更的日志记录。如：在用户订单系统中，我们可以基于用户订单数据状态的改变，使用触发器构建用户订单日志表数据。
+        基于行数据变更的关系数据的更新。如：用户订单改变至付款或相关状态时，我们可以基于用户订单数据状态的改变，使用触发器改变用户会付款或相应状态信息。
+        基于行数据变更的数据汇总。如：用户订单成交或失败，我们可以基于用户订单数据状态的改变，使用触发器构建用户总成交量或失败量汇总数据。

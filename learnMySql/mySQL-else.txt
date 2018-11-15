@@ -1,0 +1,49 @@
+■■■ 复制
+    ▃▃▃▃▃▃▃▃▃▃▃▃▃▃insert into ... select▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃
+    ① 复制全部数据
+        create table `user2` like `user`;
+        insert into user2 select * from user where (...);
+
+    ② 复制部分字段（定义字段信息、字段改名字）
+        create table `user3`
+        [
+            (
+                id integer not null auto_increment primary key
+            )
+        ]
+        as
+        (
+            select `id`,`name` as `newName`,`team` as `newTeam` from `user` where (...)  --- 注意这里不要加(;)号结束
+        );
+
+■■■ 删除重复数据
+
+    ① sql语句实现
+        > create table `tmp` select `name`,`team` from `user` group by (`name`,`team`);
+        > drop table `user`;
+        > alter table `tmp` rename to `user`;
+
+    ② 修改主键或者唯一索引实现
+        > alter ignore table `user` add primary(unique) key(希望去重的哪几列);
+
+■■■ MySql避免重复数据的方法
+
+    ① ignore关键字
+        # 如果是用主键primary或者unique区分了记录的唯一性，避免重复，则当有重复的时候会忽略，执行返回受影响的行：0，如下：
+
+        > insert ignore into `table_name` ...;
+
+    ② replace into语法
+        # 如果存在重复的记录，则在新记录被插入之前，新记录会被删除，返回受影响的行：2，如下：
+        > replace into `table`...;
+
+    ③ on duplicate key update
+        # 如果您指定了ON DUPLICATE KEY UPDATE，并且插入行后会导致在一个UNIQUE索引或PRIMARY KEY中出现重复值，则执行旧行UPDATE。例如，如果列a被定义为UNIQUE，并且包含值1，则以下两个语句具有相同的效果：
+
+        > INSERT INTO table (a,b,c) VALUES (1,2,3) ON DUPLICATE KEY UPDATE c=c+1;
+        > UPDATE table SET c=c+1 WHERE a=1;
+
+        # 如果行作为新记录被插入，则受影响行的值为1；如果原有的记录被更新，则受影响行的值为2。如果列b也是唯一列，则INSERT与此UPDATE语句相当：
+
+        > UPDATE table SET c=c+1 WHERE a=1 OR b=2 LIMIT 1;
+
