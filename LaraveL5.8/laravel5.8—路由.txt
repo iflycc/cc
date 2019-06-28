@@ -1,0 +1,174 @@
+▃▃▃LaraveL 5.8▃▃▃
+1.路由的定义位于/routes目录下的路由文件中，文件通过框架自动加载，响应逻辑位于app/Providers/RouteServiceProvider类。
+	◆ routes/web.php定义了web界面的路由，这些路由被分配到了web中间件，使用Session和CSRF保护等功能。 - 在app/Http/Kernel.php中可查定义。
+	◆ routes/api.php中的路由是无状态的，这是因为被分配到了api中间组件。
+	◆ 常规的路由的定义：
+		● get ：Route::get("foo",function(){ return view("welcome"); });
+		● post：Route::post("foo",function(){ return 'post~'; });
+		● 控制器：Route::get("foo","UserController@index");
+		● Route::match(['get','post'],function(){ return "this route only can be request by get or post"; });
+		● Route::any("any",function(){ return "this route can be request by any type http verb.";});
+	◆ 	app/Providers/RouteServiceProvider 处理定义路由的服务，其中的map()方法定义路由应用，mapWebRoutes()定义了routes/web的服务，mapApiRoutes定义routes/api的服务。	◆Get型路由测试直接在浏览器输入请求地址即可，POST请求如果请求web.php需要在App/Http/Middleware/VerifyCsreToken->$except中加入对应路由地址或者别名，否则419。
+
+2.路由重定向：
+	◆ Route::redriect();
+		● Route::redirect('/here','/there');
+		● Route::redirect('/here','/there',302); - 状态码：302
+		● Route::permanentRedirect('/here','there'); - 返回301（永久重定向）,跳转后的状态码为：301
+
+3.视图路由：
+	◆ Route::view() , 不需要重新定义一个新的路由，参数1：路由名；参数2：视图名；参数3：数组，用于渲染视图中的数据，['name' => '学院']。
+	◆ Route::view('/welcome','welcome');	
+	◆ Route::view('/welcome','welcome',['name' => '学院']);
+	◆ 视图解析：在/resources/views下对应的 demo.blade.php模板中，如上述'name',解析：{{$name}}	
+	
+4.路由参数：
+	◆ 必选参数：{param}
+		● Route::get('user/{id}',function($id){ return 'User'.$id; }); - http://demo.com/user/1
+		● Route::get('user/{id}/age/{age}',function($id,$age){ return 'User'.$id; }); - http://demo.com/user/1/18
+	◆ 可选参数：{?param}	
+		● 与上述基本相同，但区别在于需要在闭包内给定参数默认值，当参数为空时使用默认值
+		● Route::get('user/{?id}',function($id = 18){ return "User".$id;});
+	◆ 正则约束：	
+		● 如上述实例中，可通过 where 方法来约束路由参数。
+		● （单参数）Route::get('user/{name}',function($name){ return $name; })->where('name','[A-Za-z]+');  — $name是字母且不为空
+		● （多参数）Route::get('user/{id}/{name}',function(){ retrun $id . $name})->where(['id' => '[0-9]+','name' => '[a-zA-Z]+']);
+	◆ 全局约束：	
+		● 如果想给全部的路由都加载固定规则的正则约束，可以使用 pattern 方法。需要在app/Providers/RouteServiceProvider类的boot方法中定义约束模式。如下：
+			/**
+			 * 定义路由模型绑定，模式过滤器等
+			 *
+			 * @param  \Illuminate\Routing\Router  $router
+			 * @return void
+			 * @translator  http://laravelacademy.org
+			 **/
+			public function boot()
+			{
+				Route::pattern('id', '[0-9]+');  —— 定义所有的路由参数中，id必须为数据，只有当id为数字时，路由才会被调用
+				parent::boot();
+			}
+		● Route::get("foo1/{id}",function($id){...});	——  只有当 {id} 是数字时才会被调用
+		● Route::get("foo2/{$nae}/{id}",function($name,$id){...});	——  只有当 {id} 是数字时才会被调用
+	◆ 路由命名：
+		● 命名路由为生成URL或重定向提供方便，在路由定义后使用name()链式定义路由名称。（页面无法直接使用定义后的路由命名，只是在代码调用时方便使用）
+		● Route::get('user/profile',function(){ return "url is:".route('profile');})->name('profile'); —— 返回：url is : http://demo.com/user/profile
+		● 指定路由名称：
+			Route::get('user/index','UserController@index')->name('uIndex');
+		● route重定向：
+			Route::get("redirect",function(){ return redirect()->route('uIndex'); });
+
+5.路由分组：
+	◆ 常见的4中形式：
+		●中间件   Route::middleware(['xxx','xxx2'...])->group(function(){ ... });
+		●命名空间 Route::namespace('xxx')->group(function(){...});
+		●路由前缀 Route::prefix('xxx')->group(function(){...});
+		●路由名称前缀 Route::name('xxx')->group(function(){...});
+	◆ 作用：路由分组的目的是让我们在多个路由中共享相同的路由属性，如：中间件和命名空间等，这样我们定义大量的路由时就不必为每个路由单独定义属性了。共享属性以数组的方式作为第一个参数被传递给Route::group方法。
+	◆ 中间件：
+		● 要给某个路由分组中定义的所有路由分配中间件，可以在定义分组之前使用middleware方法。中间件讲话安卓数组中定义的顺序依次执行：
+			Route::middleware(['first','second'])->group(function(){
+				Route::get('/',function(){
+					// uses first & second Middleware
+				});
+				
+				Route::get('foo',function(){
+					// uses first & second Middleware
+				});
+				
+			});
+	◆ 命名空间：
+		● 例如在 /app/Http/Controllers/Test/下定义了TestController类，其命名空间为 App\Http\Controller\Test，则：
+			Route::namespace('Test')->group(function(){
+				Route::get('t-index',"TestController@index"); // 已经申明了在命名空间 App\Http\Controller\Test 下（所有控制器类所在的默认命名空间是 App\Http\Controllers，因此只需要申明其后面的部分）
+			});
+			
+	◆ 路由前缀：
+		Route::prefix('admin')->group(function(){
+			Route::get("users",function(){...}); // 对应路由为：http://demo.com/admin/users
+		});
+	◆ 路由名称前缀：
+		● name方法可通过传入字段串为分组中的每个路由名称设置前缀，如：admin.
+		Route::name('admin.')->group(function(){
+			Route::get("users",function(){
+				// 新的路由名称不在是 'users',而是'admin.users'
+			})->name('users');
+		});
+
+6.路由绑定模型：
+	◆ 隐式绑定：
+		● Laravel会自动解析定义在路由或控制器动作中的Eloquent模型类型声明
+		● 自动生成、填充数据库：
+			① 修改/.env中的mysql配置信息，与本地mysql配置对应
+			② laravel根目录下执行：php artisan migrate，生成 migrations / users表
+				● php artisan migrate （这句命令其实是执行：/database/migrations/ 下面定义好了的执行文件的，每个文件对应生成一张表，亦可以命令行添加其他migration，如：需要生成files表 - php artisan make:migration create_files_table）
+			③ 生成对应的user模型播种类:UsersTableSeeder，执行下列命令，生成/database/seeders/UsersTableSeeder.php类。
+				● DatabaseSeeder类是实际执行的填充数据库的脚本，在其run()方法中需要定义实现执行seeders
+				● php artisan make:seeder UsersTableSeeder （同理：执行生成/database/seeders/UsersTableSeeder.php，可在其中自定义需要填充的表字段）
+			④ 编辑UserTableSeeder类中的内容：
+				/**
+				 * Run the database seeds
+				 * @return void
+				 */
+				public function run()
+				{
+					DB::table('users')->insert([
+						'name'  => str_random(10),
+						'email' => str_random(10).'@laravel.org',
+						'password' => brcypt('secret'),
+					]);
+				}
+			⑤ 编辑统计目录下的DatabaseSeeder.php文件，取消run()方法中的填充器前面的注释
+			⑥ 填充数据，执行如下命令，会插入一条数据到users表中
+				● php artisan db:seed 
+				
+			● 如上都执行成功，例如下列路由：
+				Route::get('/users/{user}',function(App\User $user){   // 这里的User模型具体放在哪里，可自定义，如：App\Models\User
+					return $user->email; // 会返回对应id为$user的记录`email`字段
+				});
+				● http://demo.com/users/1  返回id为1的users表的记录的email字段值
+				
+	◆ 显式绑定：
+		● 需要先在 /app/Providers/RouteServiceProvider->boot()方法中注册显示路由参数：
+			public function boot()
+			{
+				parent::boot();
+				Route::model("user_model",App\Models\User::class); // 注册'user_model'指定绑定模型类，即user_model绑定了User模型
+			}
+		● 定义一个包含{user_model}的路由：
+			Route::get('/profile/{user_model}',function(App\Models\User $user){
+				dd($user);
+			});
+
+7.兜底路由
+	● Route::fallback()定义一个当所有其他路由都未能匹配的请求URL时执行的路由（相当于TP5中的miss路由）。
+		Route::fallback(function(){
+			...
+		});
+	● 注意：兜底路由应该总是房子应用注册的所有路由的最后。
+			
+8.频次限制
+	● Laravel自带一个中间件用于限制路由的访问频次，开始该功能之前，分配throttle中间件到某个路由（组），throttle中间件接收2个参数判断给定时间内（单位：分钟）的最大请求次数。
+		如下：执行请求次数  60次 / 1分钟
+		Route::middleware('auth:api','throttle:60,1')->group(function(){
+			Route::get('xxx',function(){...});
+		});
+
+9.表单伪造
+	● HTML 表单不支持 PUT、PATCH 或者 DELETE 请求方法，因此，在 HTML 表单中调用 PUT、PATCH 或 DELETE 路由时，需要添加一个隐藏的 _method 字段，其值被用作该表单的 HTTP 请求方法：
+		<form action="/foo/bar" method="POST">
+			<input type="hidden" name="_method" value="PUT">
+			<input type="hidden" name="_token" value="{{ csrf_token() }}">
+		</form>
+		
+		还可以直接使用 Blade 指令 @method 来生成 _method 字段：
+		<form action="/foo/bar" method="POST">
+			@method('PUT')
+			@csrf
+		</form>	
+		
+		
+			
+			
+			
+			
+		
