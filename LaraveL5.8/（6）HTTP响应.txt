@@ -1,0 +1,169 @@
+1.创建响应
+	所有路由和控制器处理完业务逻辑之后都会返回一个发送到用户浏览器的响应，Laravel 提供了多种不同的方式来返回响应，最基本的响应就是从路由或控制器返回一个简单的字符串，框架会自动将这个字符串转化为一个完整的 HTTP 响应：
+	◆ 字符串 & 数组
+		Laravel会自动将数组转化为Json响应。
+		注：你知道还可以从路由或控制器返回 Eloquent 集合吗？这也会被自动转化为 JSON 响应。
+	◆ Response对象
+		Illuminate\Http\Response的实例$response，该类提供了一系列方法用于创建HTTP响应：
+		● 实例
+			Route::get('response',function(){
+				return response('Hello World' , 200)->header('Content-Type' , 'text/plain');
+			});
+		● 添加响应头
+			大部分响应方法都可以用方法链的形式调用，从而可以流式构建响应头（流接口模式）。如：
+				return response($content,$status,$header)
+						->header('Content-Type',$type)
+						->header('X-Header-One','Header Value')
+						->header('X-Header-Two','Header Value');
+				
+				或者使用withHeaders():
+				return response($content,$status,$header)->withHeaders([
+					"Content-Type" => $type,
+					'X-Header-One' => 'Header Value',
+					'X-Header-Two' => 'Header Value',
+				]);	
+		● 添加cookie到响应
+			return response($content)
+						->header('Content-Type',$type)
+						->cookie('name',$value,$minutes);	
+			cookie()方法的额外参数：->cookie($name, $value, $minutes, $path, $domain, $secure, $httpOnly)	
+			
+			此外，还可以使用Cookie门面将应用于附件的Cookie推送到输出响应队列。queue()方法接收Cookie实例或创建Cookie所必要的参数,这些Cookie会在响应被发送到浏览器之前添加到响应：
+				Route::get('cookie/response',function(){
+					Cookie::queue(Cookie::make('site','学无止境',1));
+					Cookie::queue('author','Laravel5.8'，1);
+					
+					return response('Hello Laravel',200)->header('Content-Type','text/plain');
+				});
+			在浏览器中访问，即可看到新增的2个cookie。
+		● cookie & 加密		
+			默认情况下，Laravel生成的Cookie都是经过加密的，如果想特定的Cookie不加密，可在中间件 App\Http\Middleware\EncryptCookies提供的$except属性中设置：
+			/**
+			  * 不需要加密的cookies名称
+			  * @var array
+			  */	
+			  protected $except = ['cookie_name'];
+		● 重定向
+			重定向响应是Illuminate\Http\RedirectResponse类的实例，包含了必要的头信息将用户重定向到另一个URL，有很多方式生成RedirectResponse实例，如全局辅助函数redirect():
+			Route::get('dashboard',function(){
+				return redirect('home/dashboard');
+			});
+			
+			有事需要将用户重定向到上一个请求，如表单验证不通过，可使用back()函数（由于该功能使用了Session，使用back()方法之前确保相关路由位于web中间件或者应用了Session中间件）：
+			Route::post('user/profile',function(){
+				// 验证请求...
+				return back()->withInput();
+			});
+			
+			> 重定向到路由：redirect()->route('login');
+			> 重定向到路由带参数：redirect()->route('login',['username' => '测试']);
+			> 通过Eloquent模型填充参数：
+				如果重定向到带ID参数的路由（Eloquent模型绑定），可以传模型本身，ID会被自动解析出来
+				return redirect()->route('user',[$user]);
+				如果想自定义这个路由参数中的默认参数名（默认：id），需要重写模型实例的getRouteKey()方法：
+					public function getRouteKey()
+					{
+						return $this->slug;
+					}
+			> 重定向到控制器：使用action()方法
+				return redirect()->action('UserController@index');
+				return redirect()->action('UserController@index',['id' => 1]); // 带参数
+			> 重定向到外域：
+				return redirect()->away('http://laravelacademy.org');
+			> 带一次性Session数据的重定向：
+				Route::post('user/profile',function(){
+					// 更新用户属性...
+					return redirect('dashboard')->with('status','Profile updated!');
+				});
+				重定向之后，可在Session中取出并显示一次性数据，使用Blade语法实现：
+				@if(session('status'))
+					<div class="alert alert-success">
+						{{ session('status') }}
+					</div>
+				@endif	
+				注：这个一次性体现在从 Session 取出数据之后，这些数据就会被销毁，不复存在。
+				
+			> 视图响应：
+				return response()
+						->view('hello',$data,200)
+						->header('Content-Type',$type);	
+			> Json响应
+				json()会将Content-Type设置成application/json，并且json_encode()数组为json字符串：
+				return response()->json([
+					'name' => 'Abigail',
+					'state' => 'CA'
+				]);
+				
+				如果想要创建一个JSONP响应，可以在json()方法之后调用withCallback():
+					return response()
+						->json(['name' => 'Abigail','state' => 'CA'])
+						->withCallback($request->input('callback'));
+				或者直接使用jsonp():
+					return response()
+							->jsonp($request->input('callback'),['name' => 'Abigail','state'=>'CA']);
+				
+2.文件下载
+	download()用于生成强制用户浏览器下载给定路径文件的响应。download 方法接受文件名作为第二个参数，该参数决定用户下载文件的显示名称，你还可以将 HTTP 头信息作为第三个参数传递到该方法：
+	◆实例：
+		● return response()->download($padthToFile);
+		● return response()->download($padthToFile,$name);
+		● return response()->download($padthToFile,$name,$header);
+		注：管理下载文件的Symfony HttpFoundation类要求被下载的文件有个ASCII文件名，则被下载文件不能是中文。
+		
+		Route::get('download/response',function(){
+			return response()->download(storage_path('app/images/tree.jpeg'),'测试图片.jpeg');
+		});
+	◆ 流式下载：
+		有时候你可能想要给定的操作字符串响应转化为可下载的响应而不用将操作内容写入磁盘，可使用steamDownload()方法，该方法参数：回调、文件名、可选响应头数组：
+		return response()->steamDownload(function(){
+			echo '...';
+		},'laravel-readme.md');
+
+3.文件响应
+	file()方法可直接显示文件，例如：PDF、图片，而不需要下载，参数：文件路径、响应头数组信息。
+	● 示例：
+		return response()->file($pathToFile);
+		return response()->file($pathToFile, $headers);
+		
+		Route::get('see',function(){
+			return response()->file(storage_path('app/public/images/tree.jpeg'));
+		});
+
+4.响应宏
+	如果想定义一个自定义的可在多个路由和控制器中复用的响应，可以使用Response门面上的macro方法。例如，在某个服务提供者的boot方法中编写代码如下：
+	<?php
+
+		namespace App\Providers;
+
+		use Illuminate\Support\Facades\Response;
+		use Illuminate\Support\ServiceProvider;
+
+		class ResponseMacroServiceProvider extends ServiceProvider
+		{
+			/**
+			 * Perform post-registration booting of services.
+			 *
+			 * @return void
+			 */
+			public function boot()
+			{
+				Response::macro('caps', function ($value) {
+					return Response::make(strtoupper($value));
+				});
+			}
+		}
+		
+	macro()方法接收响应名称作为第一个参数，闭包函数作为第二个参数，响应宏的闭包在ResponseFactory实现类或辅助函数response()中调用宏名称的时候被执行：	
+	
+	Route::get('macro/response',function(){
+		return response()->caps('LarvelAcademy');
+	});
+	访问路由输出：LARAVELACADEMY
+				
+				
+				
+				
+				
+				
+				
+				

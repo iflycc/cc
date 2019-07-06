@@ -1,0 +1,161 @@
+1.访问请求实例
+	◆ 在控制器中获取当前HTTP请求实例，需要在构造函数或方法中对Iluminate\Http\Request类进行依赖注入，这样当前请求实例会被服务容器自动注入：
+	◆ 依赖注入 & 路由参数：
+		Route::get('user/{id}','UserController@index');
+		public function index(Request $request,$id){...}
+	◆ 获取请求路径：
+		http://www.demo.com/user/1 
+		● $request->path()   'user/1'
+		● $request->is('user/*')   返回true / false
+		
+		http://blog.test/user/1?token=laravelacademy.org
+		● $url = $request->url(); // 不包含查询字符串 http://blog.test/user/1
+		● $url = $request->fullUrl(); // 不包含查询字符串 http://blog.test/user/1?token=laravelacademy.org
+
+2.获取请求输入
+	◆ 示例：http://blog.test/user/1?token=laravelacademy.org&name=学院君
+		$input = $request->all();
+		值为 ：['token'=>'laravelacademy.org','name'=>'学院君']
+	◆ 表单数组：
+		示例：http://blog.test/user/1?products[][name]=学院君&products[][name]=学院君小号
+		$input = $request->input('product.0.name'); //学院君
+		$names = $request->input('product.8.name'); // ['学院君','学院君小号']
+	◆ 获取参数的方法
+		● $request->query()	// 获取Get参数
+		● $request->post()	// 获取Post参数
+		● $request->input()	// 获取所有HTTP请求参数$_REQUEST
+	◆ 获取输入的部分数据
+		● only
+			$input = $request->only('username','password');	
+			$input = $request->only(['username','password']);	
+		● except	
+			$input = $request->except('username','password');	
+			$input = $request->except(['username','password']);	
+	◆ 判断请求参数是否存在
+		● has()
+			$input = $request->has('username'); //存在就返回true
+			$input = $request->has(['username','password']); //都存在才返回true
+		● filled() 
+			$input = $request->filled('username'); //存在且不为空才返回true
+	◆ 上一次请求
+		Laravel允许在两次请求之间保存上一次输入的数据，此特性对检测校验失败后充填填充表单很有作用。
+		● 【存】将输入存储到Session，$request->flash()放会将当前输入存放到一次性Session（即从Session中取出数据后，对应的数据会从Session中销毁），这样下次请求时上一次输入的数据依然有效：
+			$request->flash();
+			$request->flashOnly('username','email');
+			$request->flashExcept('password');
+		● 【存】将输入存储到Session然后重定向
+			如果你经常需要一次性存储输入请求输入并返回到表单填写页，可以在 redirect 之后调用 withInput 方法实现这样的功能：
+			redirect('from')->withInput();
+			redirect('from')->withInput($request->except('password'));
+		● 【取】取出上次请求数据，old()
+			$username = $request->old('username');
+			Blade模板，辅助函数old()：
+			<input type="text" name="username" value="{{ old('username') }}">
+	◆ Cookie
+		可使用cookie()将一个Cookie添加返回到Illuminate\Http\Response实例中，需要传递Cookie名称、值、有效期（分钟）：
+		● return response("welcome to Laravel Classroom~")->cookie('name','学院君',$minutes);
+		● 取Cookie
+			$value = $request->cookie('name');
+			$value = Cookie::get('name');
+		● 添加Cookie到响应，可以F12的调试模式下查看
+			Route::get('cookie/add',function(){
+				$minutes = 5;
+				return response("添加cookie~")->cookie("名字","值","有效时间（分钟为单位）");
+			});
+			
+			Route::get("cookie/get",function(\Illuminate\Http\Request $request){
+				$cookie = $request->cookie('名字');
+				dd($cookie);
+			});
+
+3.文件上传
+		Illuminate\Http\Request实例提供的file()方法或者动态属性来访问上传文件，file()方法返回一个Illuminate\Http\Request的一个实例，该类继承自PHP标准库提供与文件交互方法的SplFlieInfo类。
+		◆ 获取文件上传参数，如photo：
+			$file = $request->file('photo');
+			$file = $request->photo;
+		◆ 相关函数
+			● 判断文件上传是否存在：$request->hasFile('photo');
+			● 判断文件上传是否成功：$request->file('photo')->isValid();
+			● 获取文件上传路径：	  $request->file('photo')->path();    // ../images/demo.png
+			● 获取文件上传文件夹路径：$request->file('photo')->getPath(); // ../images
+			● 获取文件上传扩展名：$request->file('photo')->extension(); // png
+			
+		◆ 文件上传与保存
+			● 配置地址：config/filesystems.php
+				'disks' => [
+					'local' => [
+						'driver' => 'local',
+						'root' => storage_path('app'),
+					],
+
+					'public' => [
+						'driver' => 'local',
+						'root' => storage_path('app/public'),
+						'url' => env('APP_URL').'/storage',
+						'visibility' => 'public',
+					],
+
+					's3' => [
+						'driver' => 's3',
+						'key' => env('AWS_ACCESS_KEY_ID'),
+						'secret' => env('AWS_SECRET_ACCESS_KEY'),
+						'region' => env('AWS_DEFAULT_REGION'),
+						'bucket' => env('AWS_BUCKET'),
+						'url' => env('AWS_URL'),
+					],
+				]
+				
+				Laravel默认的local配置存储上传文件，即本地文件系统，默认跟目录是storage/app，public也是本地文件系统，只不过存放在这里是文件可以被公开访问，根目录为storage/app/public，要让Web用户访问到该目录下的文件，前提是在应用的入口public目录下建一个软链接storage链接到storage/app/public。
+				
+			● 上传 / 接收 / 存储
+				如：资源控制器FileController->create()方法对应的Blade模板：
+					<form action="/file" method="POST" enctype="multipart/form-data">
+						@csrf
+						<label for="file">文件名：</label>
+						<input type="file" name="file" id="file">
+						<input type="submit" name="submit" value="提交">
+					</form>
+				
+				在stroe()方法中接收：
+					$path = $request->photo->store('images');
+					$path = $request->photo->store('images', 's3'); //路径可以是本地文件系统的某个位置，也可以是云存储（如Amazon S3）上的路径。
+					
+					如果不想自动生成文件名，可以使用storeAs(),参数依次为：保存路径、文件名、磁盘名		
+					$path = $request->photo->storeAs('images', 'filename.jpg');
+					$path = $request->photo->storeAs('images', 'filename.jpg', 's3');
+				
+4.配置信任代理
+	如果你的应用运行在一个会中断 TLS/SSL 证书的负载均衡器之后，你会注意到有的时候应用不会生成 HTTPS 链接，通常这是因为应用是从负载均衡器从80端口转发过来的流量，所以不知道应该生成安全加密链接。
+	要解决这个问题可以使用 App\Http\Middleware\TrustProxies 中间件，该中间件允许你快速自定义需要被应用信任的负载均衡器或代理。被信任的代理位于这个中间件的 $proxies 属性列表，除了配置信任代理之外，还可以配置代理发送的带有请求来源信息的消息头：
+	<?php
+
+		namespace App\Http\Middleware;
+
+		use Illuminate\Http\Request;
+		use Fideloper\Proxy\TrustProxies as Middleware;
+
+		class TrustProxies extends Middleware
+		{
+			/**
+			 * The trusted proxies for this application.
+			 *
+			 * @var array
+			 */
+			protected $proxies = [
+				'192.168.1.1',
+				'192.168.1.2',
+			];
+
+			/**
+			 * The headers that should be used to detect proxies.
+			 *
+			 * @var string
+			 */
+			protected $headers = Request::HEADER_X_FORWARDED_ALL;
+		}
+		注：如果你在使用 AWS Elastic Load Balancing，headers 值应该修改为 Request::HEADER_X_FORWARDED_AWS_ELB，关于 headers 属性可用的更多常量，请查看 Symfony 信任代理文档。
+		
+		信任所有代理：
+			如果你在使用 Amazon AWS 或者其他云服务提供的负载均衡，并不知道均衡器真实的 IP 地址，这种情况下，可以使用 * 通配符信任所有代理：	protected $proxies = '*';
+				
+				

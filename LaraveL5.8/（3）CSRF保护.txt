@@ -1,0 +1,43 @@
+1.简介
+	◆ CSRF（跨站请求伪造，cross-site request forgery），伪装授权用户的请求来攻击授信网站的恶意漏洞。
+	◆ Laravel会为每个被应用管理的有效用户会话生成一个CSRP令牌，然后将令牌存放在Session中，改令牌用于验证授权用户和请求发起者是否是用一个人。
+	◆ 任何时候，在Laravel应用中定义HTML表单，都需要在表单中引入CSRF令牌字段，这样CSRF保护中间件才能对请求进行验证。
+		● blade模板中
+			<form method="POST" action="/profile">
+				@csrf
+				...
+			</form>
+		● 函数csrf_field()
+			Route::get('xxx',function(){
+				return "<form method='POST' action='/profile'>";
+			});
+
+2.指定URL或路由不做CSRF检测
+	◆ app/Http/Middleware/VerifyCsrfToken.php的 protected $except 属性中添加响应URL或者路由
+		<?php
+			namespace App\Http|Middleware;
+			use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken as Middleware;
+			
+			class VerifyCsrfToken extends Middleware
+			{
+				/**
+				 * CSRF验证中排除的URL
+				 *
+				 */
+				 protected $expect = [
+					// ...
+				 ];
+			}
+	◆ X-XSRF-TOKEN
+		除了将CSRF令牌作为POST参数验证外，还可以通过X-CSRF-Token请求头来实现验证，VerifyCsrfToken中间件会检查X-CSRF-TOKEN请求头。如下：
+		标签：<meta name='csrf-token' content="{{csrf_token}}">
+		然后在js库（如JQuery）中添加改令牌到所有请求头，这为基于AJAX的请求提供了简单、方便的方式来避免CSRF攻击：
+			$.ajaxSetup({
+				header:{
+					"X-CSRF-TOKEN" : $('meta[name="csrf-token"]').attr('content')
+				}
+			});
+			
+			注：默认情况下，resources/js/bootstrap.js 文件会将 csrf-token meta 标签值添加到 Axios HTTP 库，如果你没有使用这个库，则需要手动配置应用的行为。
+			
+			

@@ -1,0 +1,89 @@
+1.简介：
+	◆ 为了过滤进入应用前的HTTP请求。
+
+2.定义中间件：
+	◆ 命令：php artisan make：middleware xxx
+	◆ 执行中间件生产命令之后会在 /app/Http/Middleware/ 下生成对应的xxx.php中间件，如：
+		● php artisan make：middleware CheckToken
+			生成.../Middleware/CheckToken.php：
+			
+			class CheckToken
+			{
+				public function handle($request, Closure $next)
+				{
+					// 请求前处理动作
+					// ...
+					$response = $next($request);
+					 # 请求后处理动作
+					 # ...
+					return $response;
+				}
+			}
+3.注册中间件
+	◆ 分类：全局中间件、中间件组、指定路由中间件。
+		● 全局中间件
+			如果想要定义的中间件在每个HTTP请求时都被执行，则需要将对应的中间件类添加到 app/Http/Kernel.php的数组属性$middleware中即可（一般不会把业务级中间件放到全局中间件中）。
+		● 分配中间件到指定路由
+			首先需要在app/Http/Kernel.php中分配给该中间件一个key，默认情况下，该类的$routeMiddleware属性包含了LaraveL自带的中间件，比如：追加 'token'=> CheckToken::class,则在middleware方法之后可以将其分配到路由：
+			Route::get("xxx",function(){...})->middleware('token');			
+		● 中间件组
+			将相同业务的路由分配到同一组路由中，HTTP Kernel的$middlewareGroups属性，LaraveL自带了2个web和api中间件组。中间件组只是让一次分配给路由多个中间件的实现更加方便：
+				Route::middleware(['web','api',...])->group(function(){
+					
+					Route::get('xxx',function(){...});
+					...
+					
+				});
+				或者
+				Route::group(['middleware' => ['web']],function(){
+					Route::get('xxx',function(){...});
+					...
+				
+				});
+		● 中间件排序
+			在某些特殊场景下，需要中间件按照指定顺序执行，但是一旦中间件被分配到了指定路由就没法控制它们的执行顺序了。这时，可以在app/Http/Kernel.php文件中通过$middlewarePriority属性来指定中间件的优先级：
+
+4.中间件参数
+	（在使用命令行：php artisan make：middleware XXX之后，手动修改对应的中间件handle()方法，添加第三个参数）
+	中间件可接收额外的自定义参数。例如，如果应用需要在执行给定冬至之前验证用户是否拥有指定角色，可以创建一个CheckRole来接收角色名作为额外参数。
+	额外的的中间件参数会在 Closure $next之后传入中间件：
+	<?php
+		namespace App\Http\Middleware;
+		user Closure;
+		class CheckRole
+		{
+			/**
+			  * 处理输入请求
+			  *
+			  * @param \Illuminate\Http\Request $request
+			  * @param \Closure $next
+			  * @param string $role
+			  * @return mixed
+			  */
+			  public function handle($request,Closure $next,$role)
+			  {
+					if(!$request->user()->hasRole($role)){
+						....
+					}
+					return $next($request);
+			  }
+		}
+	参数可通过在定义路由时通过 ： 分隔中间件名和参数名来指定，多个参数逗号分隔（role:x1 / role:x1,x2...）
+		Route:get('post/{id}',function($id){
+			// ...
+		})->middleware("role:editor");
+
+5.终端中间件
+	可以理解为一个善后的后台处理中间件。在中间件中自定义一个public function terminate($request,$response){...}方法,该方法在中间件最后调用。
+	class CheckToken
+	{
+		public function handle($request,Closure $next)
+		{
+			$response = $next($request);
+		}
+		
+		public function terminate($request,$response)
+		{
+			// ...
+		}
+	}
