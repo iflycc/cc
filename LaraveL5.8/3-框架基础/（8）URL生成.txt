@@ -1,0 +1,107 @@
+1.简介
+	◆ 生成URL
+		url()辅助函数可用于生成URL，并且生成的URL会自动使用当前请求的scheme（HTTP / HTTPS）和host属性：
+		$post = App\Post::find(1);
+		echo url("/posts/{$post->id}");
+		
+		// 输出 http://example.com/posts/1
+	◆ 访问当前URL
+		如果没有传递路径信息给url()辅助函数，则会返回一个Illuminate\Routing\UrlGenerator实例，从而允许访问当前的URL信息：
+		● 获取当前请求的URL：			url()->current();
+		● 获取包含请求字符串的当前URL：	url()->full();
+		● 获取上个请求的完整URL：		url()->previous();
+		
+		上述没个方法都可以通过URL门面进行访问，例如：
+			use Illuminate\Support\Facades\URL;
+			echo URL::current();
+
+2.命名路由URL
+	route()可用于生成指向命名路由的URL。命名路由允许生成不与路由中定义的实际URL耦合的URL，因此，当路由URL改变时，route()函数调用不需要做任何改变。
+	◆ 示例：
+		Route::get('/post/{post}',function(){
+			//...
+		})->name('post.show');
+		生成指向该路由的URL，可使用route()辅助函数：
+		echo route('post.show'['post' => 1]);
+		// 输出 http://example.com/post/1
+		
+		通常会使用Eloquent模型的主键来生成URL，因此可以传递Eloquent模型昨晚参数值，route()辅助函数会自动解析模型主键值：
+		echo route('post.show',['post' => $post]);
+		多个参数：
+			Route::get('/post/{post}/comment/{comment}',function(){
+				// ...
+			})->name('comment.show');
+			
+			echo route('comment.show',['post' => 1,'comment' => 3]);
+			// http://example.com/post/1/comment/3
+
+3.签名URL
+	Laravel可创建与命名路由映射的[签名]URL，这些URL会将[签名]哈希只加到查询字符串后面，一遍Laravel验证URL在创建之后有没有被篡改：
+	
+	● 使用URL门面上的signedRoute()方法：
+		use Illuminate\Support\Facades\URL;
+		return URL::signedRoute('demo',['user' => 1]); // 生成的连接：http://example.com/demo?user=1&signature=45b8778af6c548c5a4f41ff1703bb0f72d17d8a111a9a4b43ce5d4f772f26210
+	● 如果你想生成一个包含过期时间的临时签名URL，可使用temporarySignedRoute()方法：
+		use Illuminate\Support\Facades\URL;
+		return URL::temporarySignedRoute(参数1：路由名，参数2：过期时间，为YYYY-MM-DD H:i:s形式，参数3：携带的参数数组);
+		return URL::temporary('tempSign',now()->addminutes(5),['user' => 1]); //生成签名路由，过期时间5分钟，携带参数user=1， http://iflycc2.com/tempSign?expires=1562657449&user=1&signature=31c19cadf372b5abd1ccdcc8666d378f0cbfae5e6f5fbe43d1d4fc4206c8474d
+	● 验证签名路由请求
+		验证签名路由的方法，hasValidSignature()：
+		use Illuminate\Http\Request;
+		Route::get('vefiySignRoute',function(Request $request){
+			if(!$request->hasValidSignature()){
+				abort(401);
+			}
+		})->name('verifySignature');
+		
+		此外，还可以分配Illuminate\Routing\Middleware\ValidateSignature中间件到对应路由验证，先注册中间件到Kernel.php -> $routeMiddlewars属性（Laravel默认也自带了）:
+		Route::post("verifySignature/{param}",function(){
+			//...
+		})->name("verifySignature")->middleware('signed');
+		如果路由失效，中间件会自动返回403错误。	
+		
+		★ 原理：上述的URL加密和验证都是通过url的GET方式获取参数进行的加密对比。
+			> ① 生成验证URL：
+				use Illuminate\Support\Facades\URL;
+				URL::signedRoute('路由名'，[参数数组]); //这里的`参数数组`是生成跟在url后面的query_string，如：['name'=>'cc','age'=>18] ——  http://xxx.com ?name=cc&age=18&signature=xxx
+				同理，临时签名URL：URL::temporarySignedRoute('路由名'，now()->addminutes(5),[参数数组]);
+				
+			> ② 访问生成的签名路由，根据路由上的query参数生成加密串（除了signature参数），与signature参数对比（hash_equals对比）：
+				如上，参数为：http://xxx.com?name=cc&age=18
+			> ③ 实际调用方法
+				Illuminate\Routing\UrlGenerator->signedRoute() / temporarySignedRoute() 加密：
+				Illuminate|routing\UrlGenerator->hasValidSignature() 加密并对比：
+
+4.控制器动作URL
+	action()辅助方法用于为控制器动作生成URL：
+	$url = action("HomeController@index");
+	$url = action("HomeController@index",['id'=>1]);
+	
+	还可以通过[可调用]数组语法引用控制器动作：
+	use App\Http\Controolers\HomeController;
+	$url = action([HomeController::class,'index']);
+	
+5.默认参数
+	假设多个路由都配置了同一个参数{locale}：
+	Route::get('/{locale}/posts',function(){
+		//...
+	})->name('post.index');
+	
+	可以使用URL::defults()方法定义一个默认值，我们可以在某个路由中间件中调用该方法以便可以访问当前请求：
+	<?php
+
+	namespace App\Http\Middleware;
+
+	use Closure;
+	use Illuminate\Support\Facades\URL;
+
+	class SetDefaultLocaleForUrls
+	{
+		public function handle($request, Closure $next)
+		{
+			URL::defaults(['locale' => $request->user()->locale]); //数组形式，可调用多个
+
+			return $next($request);
+		}
+	}
+	一旦设置好locale参数默认值之后，就不必在route辅助函数生成URL时每次传递值了。

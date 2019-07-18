@@ -1,0 +1,149 @@
+1.创建视图
+	◆ 基础用法
+		● 目录：resources/views
+		● 函数调用：view("admin.xxx",['name' => '张三']);
+	◆ 判断视图是否存在	
+		● 调用View门面上的exists方法：
+			use Illuminate\Support\Facades\View;
+			
+			if(View::exists("admin.xxx")){ 
+				//... 是否存在resources/views/admin/xxx.php（xxx.blade.php）的模板
+			}
+			
+			或者
+			if(view()->exists('admin.xxx')){
+				// view()方法实际上返回的是Illuminate\Support\Facades\View的一个实例
+			}
+		● 创建第一个有效视图
+			视图上的first()方法接收2个参数：1：视图名称数组，展示第一个有效名称的视图。2：参数数组。
+			return view()->first(['custom.admin','index','foo'],['name' => '张三']);  //三个数组名称，哪个有效调用哪个
+			
+			门面调用：
+			use Illuminate\Support\Facades\View;
+			return View::first(['custom.admin','index','foo'],['name' => '张三']);	
+	◆ 传递数据到视图
+		● 数组方式
+			return view('xxx',['name' => "张三"]);
+		● with()函数方式
+			$view = view('xxx')->with('name','张三');
+	◆ 在视图之间共享数据
+		有时需要所有视图之间共享数据片段，可使用门面上的share()方法，通常，需要在某个服务提供者的boot()方法中调用share()方法，可以将其添加到AppServiceProvider或者生成独立的服务提供者来存放代码逻辑：
+		
+		<?php 
+		namespace App\View;
+		use Illuminate\Support\Facades\View;
+		class AppServiceProvider extends ServiceProvider
+		{
+			/**
+			 * 启动所有服务
+			 * @return void
+			 */
+			public function boot()
+			{
+				View::share('key','value'); 
+			}		
+			
+			/**
+			 * 注册服务提供者
+			 * @return void
+			 */	
+			public function register()
+			{
+				//
+			}	
+		}
+
+2.视图Composer（视图共享）
+	对于网站的一些公共参数，比如：用户名、昵称等，需要在每个模板中都渲染显示，则可以通过`视图Composer`实现。
+	◆ 示例：
+		① 自定义一个视图Composer服务提供者的目录，例如 app/Http/View/Composer ：
+			<?php 
+			
+			namespace App\Http\ViewComposers;
+			use Illuminate\View\View;
+			
+			class ProfileComposer
+			{
+				/**
+				 * 绑定数据到指定视图，启动服务提供者时，自动调用compose()方法
+				 * @return void
+				 */ 
+				 public function compose(View $view)
+				 {
+					// 绑定数据到composer视图
+					$view->with('key','value');
+				 }
+			}
+			● 视图被渲染前，Composer类的compose()方法被调用，同时Illuminate\View\View实例被注入该方法，因而可以使用with()方法。
+			● laravel不会包含默认的视图Composer目录，需要自行新建，并且将会使用View门面来访问Illuminate\Contracts\View\Factory的底层实现。
+			
+		② 自定义一个服务提供者并添加到config/app.php的providers数组中。
+			<?php
+			namespace App\Providers;
+			
+			use Illuminate\Support\Facades\View;
+			use Illuminate\Support\ServiceProvider;
+			
+			class ComposerServiceProvider extends ServiceProvider
+			{
+				/**
+				 * 在容器中注册绑定 	
+				 * 	@return void
+				 */
+				public function boot()
+				{
+					// 使用基于类方法的 composers...
+					View::composer('profile','App\Http\ViewComposer\ProfileComposer'); 		//启动以上自定义的视图composer ProfileComposer
+					
+					// 使用基于回调函数的 composers...
+					View::composer('profile',function($view){  # 这里的$view 是Illuminate\View\View的实例，因此可以使用with()方法。
+						$view->with('key','value');
+					});
+					
+					//其他方式
+					view()->composer('xxx',...);
+				}
+
+				/**
+				 * 注册服务提供者.
+				 *
+				 * @return void
+				 */
+				public function register()
+				{
+					//
+				}			
+			}
+			
+			● 添加Composer到多个视图
+				View::composer(['one','two',...],'自定义视图Composer或者回调函数');
+			● 通配符 *
+				View::composer('*',...);
+	
+	◆ 视图创建器：			
+		视图创建器和视图Composer非常类似，不同的是创建器在视图实例化之后立即失效，而不是等到视图即将渲染。使用View门面的creator()方法即可注册一个视图创建器：
+		● View::creator('profile','App\Http\ViewCreators\ProfileCreator');
+		
+		区别：
+			> View::creator('demoView',function($view){
+				$view->with('key','value');
+			});
+			
+			# in controller 
+			return View::make('demoView')->with('key','not value at all');
+			
+			最终：key = not value at all
+			—— 即：如果在视图创建者、控制器中同时定义了一个模板参数，按照View::make()方法渲染参数时，controller覆盖creator。
+			
+			> View::composer('demoView',function($view){
+				$view->wtih('key','value');
+			});
+			
+			# in controller
+			return View::make('demoView')->with('key','not value at all');
+			
+			最终：key = value
+			
+			
+			
+			

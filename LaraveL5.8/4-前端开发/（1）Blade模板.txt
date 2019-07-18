@@ -1,0 +1,346 @@
+1.模板继承
+	◆ 定义布局
+		● @section("参数名")  // 参数名必须传，否则报错
+				...
+			@endsection  // endsection中间定义的内容是不会显示的，除非@yield('xxx')声明了@section("xxx") ... @endsection
+			★ 注：对于单变量的解析，@section("xxx的yield","xxx代表的内容")
+		● @section("xxx")
+			...
+			@show	// 用于给子模板继承，声明的内容会显示，如果父模板中定了@section(xxx)...@show，子模板在继承之后，父模板中的内容不会显示，除非在其中申明了@parent
+		● @yield(xxx，默认值)	// 可以理解为"占位符"，需要依托@section(xxx)去解析，如果带默认值，若子模板不解析，则显示默认值
+			★ 注：如果子模板中对@yield(xxx)是以@section(xxx) ... @endsection完成的，则子模板中的@section(xxx)...@endsection内容会替代@yield(xxx)在父模板中声明的位置，
+					但是如果是以@section(xxx)...@show解析，则子模板中的@section(xxx)...@show会率先显示，并且父模板中的@yield(xxx)也会显示其声明的内容，会显示2次！！！
+		● @extends(xxx.yyy)	// 一般用于声明子模板继承的模板名称，如：@extends('admin.index')
+		● 示例：
+			> 父模板，<views/layouts/app.blade.php>
+				<html>
+					<head>
+						<title>应用名称 - @yield('title','parent-Title')</title>
+					</head>
+					<body>
+						@section('sidebar')
+							这里是侧边栏
+							@show
+
+						<div class="container">
+							@yield('content')
+						</div>
+					</body>
+				</html>
+			
+			> 子模板，<views/child.blade.php>
+				@extends('layouts.app')
+				@section('title', 'Laravel学院')
+
+				@section('sidebar')
+					@parent
+					<p>Laravel学院致力于提供优质Laravel中文学习资源</p>
+				@endsection
+
+				@section('content')
+					<p>这里是主体内容，完善中...</p>
+				@endsection
+		★★ 子模板相当于对父模板中定义的@yield(...)的解释（翻译），但是实际网页加载的模板名是：子模板。 		
+	◆ 组件(component) & 插槽(slot)
+		● slot插槽，也是声明一个区域块变量，占位，然后需要组件(component)去做解析，模板解析加载的模板名实际是：组件名（component）
+		● 组件（component）给插槽（slot）传参：@component('插槽名',['插槽中的变量名' => '变量值'])，注：如果组件中的传参'插槽中的变量名'与插槽中的变量名重名，则不做解析。
+		● 示例：
+			> 插槽：<views/demo-slot.blade.php>（不管是"插槽"还是"参数"，对于插槽脚本来说，都是$开头的变量，关键看组件脚本中如何解析这些变量）
+				<div class="alert alert-danger">
+					<div class="alert-title">{{ $title }}</div>
+						{{ $slot }}  // 默认的slot插槽，只要组件声明解析，就自动解析，不需要额外@slot('slot')...@endslot标签
+					<div>
+   
+					</div>
+					     {{ $ps }} // 组件变量传参
+					</div>
+				</div>
+			
+			> 组件：<views/demo-component.blade.php>
+				@component('demo-slot',['ps' => "我将demo-slot的$ps解析成模板传参"])
+					@slot('title')
+						我将demo-slot的$title解析成插槽对应的组件内容
+					@endslot
+				@endcomponent
+				
+		★★ 模板加载的时候，视图如果想给“插槽”传参，只能通过“组件”，即：@component('slot-name',['param' => 'val'])...@endcomponent		
+				
+2.数据显示
+	● {{ $param }}，Blade的{{}}都是经过htmlentities函数处理过的，避免XSS攻击。
+	● 原生显示 —— {!! $param !!}	
+	● 渲染json —— @json($param) , 不需要额外的{{}}，直接@json(变量名)
+	● Blade & JS框架
+		由于很多JS框架也用{{}}解析变量，如Vue，我们可使用@符号告诉Blade模板表达式应该保持原生格式不变，如：
+			<h1> Hello,@{{$name}}</h1>
+		则，@符在编译阶段会被去掉，但是{{$name}}保持原样，可以被JS框架正常解析。	
+	● verbatim指令，在@verbatim	... @endverbatim中，{{$params}}都会保持原样不会被解析
+		@verbatim
+			Hello,{{$name}},and Hello {{$anyone}}
+		@endVerbatim
+
+3.流程控制
+	◆ If语句
+		● @if , @elseif , @else, @endif 构造，基本上跟php一样：
+			@if( count($i) === 1 )
+				I have one i!
+			@elseif( count($i) > 1 )
+				I have multiple	is!
+			@else
+				I don't have any i!
+			@endif
+		● @unless指令，表示除非：
+			@unless(Atuh::check())
+				You are signed in.
+			@endunless
+		● @isset，即isset()
+			@isset($i)
+				...
+			@endisset
+		● @empty，即empty()
+			@empty($i)
+				...
+			@endempty	
+	◆ 认证指令
+		● @auth 和 @guest指令判断当前用户是否登录
+			@auth
+				// 用户已登录...
+			@endauth
+
+			@guest
+				// 用户未登录...
+			@endguest
+			如果需要的话，你也可以在使用 @auth 和 @guest 的时候指定认证 guard：
+			@auth('admin')
+				// The user is authenticated...
+			@endauth
+
+			@guest('admin')
+				// The user is not authenticated...
+			@endguest	
+		● Section指令
+			可以使用 @hasSection 指令判断某个 section 中是否有内容（@hasSection...@endif）：
+			@hasSection('navigation')
+				<div class="pull-right">
+					@yield('navigation')
+				</div>
+
+				<div class="clearfix"></div>
+			@endif
+		● Switch语句
+			switch通过 @switch @case @break @default @endswitch构建
+			@switch($i)
+				@case(1)
+					First
+					@break
+				...
+				@default
+					Default value
+			@endswitch		
+		● 循环
+			@for ($i = 0; $i < 10; $i++)
+				The current value is {{ $i }}
+			@endfor
+
+			@foreach ($users as $user)
+				<p>This is user {{ $user->id }}</p>
+			@endforeach
+
+			@forelse ($users as $user)
+				<li>{{ $user->name }}</li>
+			@empty
+				<p>No users</p>
+			@endforelse
+
+			@while (true)
+				<p>I'm looping forever.</p>
+			@endwhile
+			
+			★注：在循环的时候可以使用 $loop 变量获取循环信息，例如是否是循环的第一个或最后一个迭代。	
+			
+			> 循环示例：
+				@foreach ($users as $user)
+					@if ($user->type == 1)
+						@continue
+					@endif
+
+					<li>{{ $user->name }}</li>
+
+					@if ($user->number == 5)
+						@break
+					@endif
+				@endforeach
+				
+				同下：
+				@foreach($users as $user)
+					@continue($user->type == 1)
+					<li>{{ $user->name }}</li>
+					@break($user->number == 5)
+				@endforeach
+		● $loop变量
+			在循环的时候，可以在循环体中使用 $loop 变量，该变量提供了一些有用的信息，比如当前循环索引，以及当前循环是不是第一个或最后一个迭代：
+			@foreach ($users as $user)
+				@if ($loop->first)
+					This is the first iteration.
+				@endif
+
+				@if ($loop->last)
+					This is the last iteration.
+				@endif
+
+				<p>This is user {{ $user->id }}</p>
+			@endforeach
+			
+			如果你身处嵌套循环，可以通过 $loop 变量的 parent 属性访问父级循环：
+			@foreach ($users as $user)
+				@foreach ($user->posts as $post)
+					@if ($loop->parent->first)
+						This is first iteration of the parent loop.
+					@endif
+				@endforeach
+			@endforeach
+			
+			相关属性：
+				属性				描述
+				$loop->index		当前循环迭代索引 (从0开始)
+				$loop->iteration	当前循环迭代 (从1开始)
+				$loop->remaining	当前循环剩余的迭代
+				$loop->count		迭代数组元素的总数量
+				$loop->first		是否是当前循环的第一个迭代
+				$loop->last			是否是当前循环的最后一个迭代
+				$loop->depth		当前循环的嵌套层级
+				$loop->parent		嵌套循环中的父级循环变量
+
+4.包含子视图
+	● @include("xxx.yyy") —— 所有父级视图中变量在背包含的子视图中依然有效
+	● @include("xxx.yyy",['p1' => 'v1'...]) —— 包含子视图传参
+	● @includeIf('xxx.yyy',['p1'=>'v1']) —— 包含可能不存在的子视图
+	● @includeWhen($boolen,'xxx.yyy',['p1'=>'v1']) —— 先给定一个布尔值，为true时，包含给定的视图并传参
+	● @includeFirst(['view1','view2'...],['p1'=>'v1']) —— 包含给定数组中的第一个视图并传参
+	● 
+
+5.堆栈
+	Blade允许推送内容到命名堆栈，以便其他视图或布局中渲染。这在子视图中引入指定JS库时很有用：
+		@push('scripts')
+			<script src="/example.js"></script>
+		@endpush
+	推送次数不限，要渲染完整的堆栈内容，传递堆栈名称到@stack指令即可：
+		<head>
+			...
+			@stack('scripts')
+		</head>
+	如果想将内容在堆栈开头显示，使用@prepend('堆栈名') ... @endprepend
+		@push('scripts')
+			This will be second...
+		@endpush	
+		
+		@prepend('scripts')
+			This will be first...
+		@endprepend	
+
+6.服务注入	
+	@inject()可从服务容器中获取服务，第一个参数：服务对应的变量名，第二个参数：要解析的服务类名或者接口名：
+		@inject('metrics','App\Services\MetricsService')
+		
+		<div>
+			Monthly Revenue:{{ $metrics->monthlyRevenue() }}
+		</div>
+
+7.Blade扩展
+	◆ 自定义指令，使用directive()方法来注册一个指令，如下注册一个@datetime($var)指令格式化给定的DateTime的实例$var:
+		<?php
+
+		namespace App\Providers;
+
+		use Illuminate\Support\Facades\Blade;
+		use Illuminate\Support\ServiceProvider;
+
+		class AppServiceProvider extends ServiceProvider
+		{
+			/**
+			 * Perform post-registration booting of services.
+			 *
+			 * @return void
+			 */
+			public function boot()
+			{
+				\Blade::directive('datetime', function($expression) {
+					return "<?php echo ($expression)->format('m/d/Y H:i'); ?>";
+				});
+			}
+
+			/**
+			 * 在容器中注册绑定.
+			 *
+			 * @return void
+			 */
+			public function register()
+			{
+				//
+			}
+		}
+		可以将 format 方法应用到任何传入指令的表达式上，所以，在本例中，该指令最终生成的 PHP 代码如下：
+		<?php echo ($var)->format('Y/m/d H:i'); ?>		
+		
+		★★ 更新完Blade指令逻辑后，必须删除所有Blade缓存，可通过命令 php artisan view:clear 执行。	
+	◆ 自定义If语句
+		在定义一些简单、自定义的条件语句时，编写自定义指令往往复杂性大于必要性，因为这个原因，Blade 提供了一个 Blade::if 方法通过闭包的方式快速定义自定义的条件指令，例如，我们来自定义一个条件来检查当前应用的环境，我们可以在 AppServiceProvider 的 boot 方法中定义这段逻辑：
+		use Illuminate\Support\Facades\Blade;
+
+		/**
+		 * Perform post-registration booting of services.
+		 *
+		 * @return void
+		 */
+		public function boot()
+		{
+			\Blade::if('env', function ($environment) {
+				return app()->environment($environment);
+			});
+		}
+		定义好自定义条件后，就可以在模板中使用了：
+
+		@env('local')
+			// The application is in the local environment...
+		@elseenv('testing')
+			// The application is in the testing environment...
+		@else
+			// The application is not in the local or testing environment...
+		@endenv
+				
+8.@each的用法
+	在laravel blade 模板中 @each 在实现数据的循环时比@foreach更加的强大和优雅，但是常常被忽视了。
+	● @foreach
+			假设现在你需要循环你的文章的所有评论。你可能会像下面这样写：
+
+			@if(count($article->comments) > 0) 
+				@foreach($article->comments as $comment)
+					@include('comments.item')
+				@endforeach
+			@else
+				@include('comments.no-items')
+			@endif
+			这看起来相当的乱，你可能会想到使用@forelse 来实现更好。
+
+	● @forelse		
+			@forelse($article->comments as $comment)
+				@include('comments.item')
+			@empty
+				@include('comments.no-items')
+			@endforelse
+			好些了但是仍然感觉有点乱，几乎所有的@forelse 我们都要包含@empty语句。我们可以使用@each 来仅用一条语句来实现这个循环。	
+	● @each	
+			@each('comments.item', $article->comments, 'comment', 'comments.no-items')
+				
+			1.循环的单个视图。
+			2.需要循环的数据。
+			3.赋予当前循环的变量。
+			4.当被循环的数据被空时被渲染的视图（可选项）。	
+				
+				
+				
+				
+				
+				
+				
+				
+				

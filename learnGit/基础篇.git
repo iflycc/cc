@@ -44,3 +44,12 @@
 
 9.log命令确认数据库的历史记录是否准确。指定--graph选项，能以文本形式显示更新记录的流程图。指定--oneline选项，能在一行中显示提交的信息。
     $ git log --graph --oneline
+
+
+10.▃▃▃▃本地-远程仓库配对恢复▃▃▃▃
+    ◆ cd ~/.ssh (若无 id_rsa / id_rsa.pub，则执行 ssh-keygen -t rsa -C "yourEmail@example.com" 生成)
+    ◆ ssh -v git@github.com
+    ◆ ssh-agent -s
+    ◆ ssh-add ~/.ssh/id_rsa
+    ◆ 复制id_rsa.pub的内容到自己的账号，setting下的SSH and GPG keys下的new SSH key
+    ◆ ssh -T git@github.com

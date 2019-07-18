@@ -1,0 +1,152 @@
+1.简介
+	◆ Laravel自带很多Artisan命令，可命令行执行脚本逻辑。
+		● php artisan list —— 查看所有可用的Artisan命令
+	每个命令都能用help指令，显示命令的描述即命令参数和选项，只需要在命令前加上 help 参数或者 后面加 -h：
+		● php artisan help migrate / php artisan migrate -h
+
+2. Tinker（修补匠）REPL
+	所有的Laravel应用都提供了Tinker——一个由PsySH扩展包驱动的REPL（Read-Eval-Print- Loop，即终端命令行"读取-求值-输出"循环工具）。Tinker允许通过命令行与整个Laravel应用进行交互，包括Eloquent ORM、任务、事件等等。
+	
+	◆ 	tinker位于：vendor/laravel/tinker/
+		● php artisan tinker —— 进入Tinker模式
+		可使用 vendor;publish 命令发布Tinker配置文件：
+		● php artisan vendor:publish --provider="Laravel\TinkerServiceProvider"
+		● 命令白名单：
+			Tinker使用白名单来判断哪些Artisan命令可以在Shell中运行。如果想自定义添加新命令，在.../tinker.php配置文件中的Commands数组中配置，如：
+				'Commands' => [
+					// App\Console\Commands\ExampleCommands::class,
+					\App\Console\Commands\TestMake::class,
+				],
+			
+		● 别名黑名单
+			tinker会根据需要为类设置别名，如果不想添加别名，可在tinker.php的dont_alias数组中添加这些类：
+				'dont_alias' => [
+					App\User::class,
+				],
+		★ 注意：不管是白名单还是黑名单，添加的都是类名，执行的是对应的handle()方法		
+
+3.编写命令
+	除了自带的命令外，Artisan的command:make 可自定义命令，生成在app/Console/Commands目录下创建一个新的命令类：
+		● php artisan make:command TestMake
+	◆ 命令结构
+		新生成的命令类包含2个公有属性 $signature 和 $description，而handle()在命令被调用时，是逻辑的执行体。
+		● $sigature：执行的命令
+		● $description：命令描述
+	◆ 闭包命令
+		基于闭包的命令和闭包路由之于控制器一样，在app/Console/Kernel.php文件中的commands方法中，Laravel加载了routes/console.php文件，相当于Artisan命令路由：
+		● Artisan:command()方法自定义命令路由，command()方法接收2个参数 —— 命令标识、闭包。
+			Artisan:command("build {project}",function($preoject){
+				$this->info("Building {$project}!");
+			});
+		● 闭包命令描述 —— describe()方法
+			Artisan::command("xxx",function(){...})->describe("the command's desc~");
+
+4.定义期望输入
+	在命令中，使用signature属性定义我们期望的用户输入。
+	◆ 参数
+		所有用户提供的参数和选项都包含在花括号里。
+		/*
+		 * 控制台命令名称
+		 */
+		 ● protected $signature = "email:send {user}" 	//必选参数
+		 ● protected $signature = "email:send {user?}"  //可选参数
+		 ● protected $signature = "email:send {user=foo}" //带默认值的选项参数
+	◆ 选项
+		和参数一样，是用户输入的另一种格式，不同之处在于前面有两个短划线（--），两种类型的选项：接收值、不接收值。
+		/*
+		 * 控制台命令名称
+		 */
+		● protected $signature = "email:send {user} {--queue}";		 
+		如上，--queue如果被传递则为true，否则为false。
+		 
+		● protected $signature = "email:send {user} {--queue=}" —— 带值的选项
+		● protected $signature = "email:send {user} {--queue=default}"; —— 带默认值default的选项
+		● protected $signature = "email:send {user} {--Q|queue}" —— 简写模式
+		● protected $signature = "email:send {user*}"; —— 数组参数
+			> php artisan email:send v1 v2 v3... ，则 user 的值为：[v1,v2,v3...]
+		● protected $signature = "email:send {user} {--id=*}"; —— 数组选项
+			> php artisan email:send --id=v1 --id=v2 --id=vn ，则 id 为：[v1,v2...vn]
+		输入描述：
+			可以通过冒号`:`将参数和描述进行分割的方式分配描述到输入参数和选项，可换行：
+			● protected $signature = "email:send
+									  {user : The ID of user}	
+									  {--queue= : Whether the job shoule be queued}";	
+    ◆ 命令I/O
+		● 获取输入
+			在命令执行的时候需要获取参数和选项，分别对应arguments() / options()方法
+			> $arguments = $this->arguments(); —— 获取参数，不存在返回null
+			> $options = $this->options(); —— 获取选项，不存在返回null
+	◆ 输入提示
+		● $answer = $this->ask("what's your name ?");  —— 命令行输入之后，程序获取输入的指令且输入字符串可见
+		● $answer = $this->secret("what's your name ?"); —— 同上，只不过输入字符串不可见
+		● $response = $this->confirm("Do you wish to continue?") —— 用户确认，输入 y / n ，y返回true,n为false
+		● $answer = $this->anticipate("What's your name?",['Taylor','Dayle']); —— 自动完成，感觉没啥用
+		● $answer = $this->choice("What's your name?" ["Taylor","Dayle"],可选参数,默认下标 $defaultIndex); —— 用户选项
+		● 编写输出：（line，info，comment，question，error）
+			> $this->line("print content~"); —— 原生输出 
+			> $this->info("print content~"); —— 输出，终端显示绿色
+			> $this->error("print content~"); —— 输出，终端显示红色
+		● 表格布局：
+			table()方法输出多行/列格式数据，只需传递头行行即可：
+			> $headers = ['Name','Email'];
+			  $rows = [
+					["小刘鸭1","yy_1@163.com"],
+					["小刘鸭2","yy_2@163.com"],
+				];
+		● 进度条：
+			> $bar = $this->ouput->createProgressBar(count($itmes)); // 进度条实例，并且传递参数分几步
+			  $bar->start();
+			  foreach($items as $_item){
+				/... 逻辑
+				
+				$bar->advance(); // 进度条进一步
+			  }
+			  $bar->finish(); //进度条结束，释放实例
+		
+5.注册命令
+	Console Kernel的commands()方法会调用load()方法，所有在app/Console/Commands目录下的命令都会加重到Artisan自动注册，那么也可以加载其他自定义目录：
+	● 自动加载注册命令
+		/**
+		  * Register the commands for the application.
+		  * @return void
+		*/
+		protected function commands()
+		{
+			$this->load(__DIR__.'/Commands');
+			$this->load(__DIR__.'/MoreCommands');
+
+			// ...
+		}
+	● 通过app/Console/Kernel.php类的$commands属性手动注册命令。当Artisan启动的时候，该属性列出的命令将被服务容器解析并注册：
+	  这种一般是不想全部加载某个目录下的Artisan命令	
+		protected $commands = [
+			Commands\DemoMake::class,
+		];
+
+6.通过代码调用命令
+	◆ call()方法
+		Route::get("/foo",function(){
+			$exitCode = Artisan::call("email:send",[
+				"user" => 1, // "user" => [] / bool
+				"--queue" => "default"
+			]);
+		});
+		
+		● 传递完整的命令：Artisan::call("email::send 1 --queue=default");
+	◆ 通过其他命令调用命令
+		/**
+		* 执行控制台命令
+		*
+		* @return mixed
+		*/
+		public function handle(){
+			$this->call('email:send', [
+			'user' => 1, '--queue' => 'default'
+		  ]);
+		}
+		如果你想要调用其它控制台命令并阻止其所有输出，可以使用callSilent 方法。callSilent 方法和 call 方法用法一致：
+		$this->callSilent('email:send', [
+			'user' => 1, '--queue' => 'default'
+		]);
+		
+			

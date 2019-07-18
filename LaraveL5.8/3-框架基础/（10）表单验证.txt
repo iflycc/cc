@@ -1,0 +1,22 @@
+1.简介
+	◆ Laravel默认情况下，控制器基类使用ValiddatesRequests trait,该trait提供了便捷方法通过各种功能强大的验证规则校验HTTP请求：
+		● Laravel的Artisan migration（迁移） / seeder（播种）生成数据表
+			> ① 生成迁移文件
+				$ php artisan nake:migration  create_posts_table --creat=posts（表名）
+			> ② 修改生成的 app/database/2019_07_12_155245_create_posts_table.php文件类中的CreatePostsTable->up()方法，设置对应需要的字段。
+			> ③ 执行命令，生成数据库表
+				$ php artisan migrate 
+				★ 注：使用migration生成数据表时，会在对应的数据库下面自动生成一个`migrations`表，该用于记录哪些 yyyy_mm_dd_...的migration被执行过了，如果发现表生成的不对想重新生成，先要删除该表中对应的记录。
+			> ④ 数据填充 - 生成填充器
+				$ php artisan make:seed PostsTableSeeder
+			> ⑤ 数据填充 - 修改填充器中的run()方法
+				public function run()
+				{
+					DB::table("posts")->insert([
+						"name" => str_random(10);
+						"age" => random_int(1,100),
+						...
+					]);
+				}
+			> ⑥ 数据填充 - 执行
+				$ php artisan db:seed 

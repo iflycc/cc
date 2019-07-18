@@ -6,6 +6,22 @@ header("Content-type: application/json; charset=utf-8");
  * Class Rsa
  * 需要开启OpenSSL扩展
  * php Rsa非对称加密算法：公钥加密 => 私钥解密  |   私钥加密 => 公钥解密
+ *
+ *
+ * 格式要求：
+ *  一. RSA PEM文件格式
+ *
+ *  1. PEM私钥格式文件
+ *      -----BEGIN RSA PRIVATE KEY-----
+ *      -----END RSA PRIVATE KEY-----
+ *
+ *  2. PEM公钥格式文件
+ *      -----BEGIN PUBLIC KEY-----
+ *      -----END PUBLIC KEY-----
+ *
+ *  3. PEM RSAPublicKey公钥格式文件
+ *      -----BEGIN RSA PUBLIC KEY-----
+ *      -----END RSA PUBLIC KEY-----
  */
 class Rsa
 {

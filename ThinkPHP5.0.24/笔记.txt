@@ -1,0 +1,660 @@
+▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂
+▎                                                       一. 路由                                                         ▎
+▎▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▆▆▆▆▆▆▆▆▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▎
+    ● 如果给某个模块定义了路由，则原来的pathInfo模式就不能再访问了。
+    ● 普通路由（数组配置模式）：
+        [
+            "IFly/:id" =>   # 路由名称
+                [
+                    "IFly/Index/Index", # 指向具体的模块/控制器/方法
+                    ["method" => "GET|POST|PUT","HTTPS" => false.....], # 参数配置
+                    ["id" => "\d+"], # patter项，配置route参数规则
+                ],
+        ]
+
+    ● 快捷路由：
+        Route::controller("fly","IFly/Index"); # 指向模块/控制器 , 即IFly模块的下的Index控制器
+
+        当在IndexController.php（假设开启了后缀配置）下定义getPhone()/ getUser()方法，路由可直接访问，如：
+            * fly/phone --> IFly/Index/getPhone()
+            * fly/user  --> IFly/Index/getUser()
+
+    ● 组合路由：
+        [
+            "gpr@<name>@<phone>/:id" => # 路由名称，其中 `name`/`phone`/`id`三个参数将作为route路由参数传递
+                [
+                    "IFly/Index/combination", # 路由地址
+                    [
+                        "method" => "GET|POST", # 请求方式，可多选
+                        "ext" => "jsp", # 后缀，是访问路由时额外添加，不需要在路由中体现
+                        "deny_ext" => "php|html|ssl", # 禁止的后缀
+                        "domain" => "baidu.com", # 域名检测
+                        "https" => "true", # https检测
+                        "ajax" => "true", # ajax检测
+                        "pjax" => "true", # pAjax检测
+                        "before_behavior" => "\app\IFly\Index\UserCheck", # namespace配置，当UserCheck->run()返回false时，路由失效
+                        "after_behavior"  => "\app\IFly\Index\ReadInfo",  # 当匹配路由成功后执行，ReadInfo->run()
+                        "callback" => "routeCallback", # 函数检测，common.php中定义routeCallback()，当返回false时，路由失效
+                        "param_depr" => "/", # 路由参数分隔符
+                        "cache" => "10", # 路由缓存，10秒
+                        "bind_model" => ['app\IFly\model\User','name&phone&id'] # 绑定模型 当只有一个`id`参数的时候，可以写成："\app\IFly\model\User",
+                    ],
+                    ["name" => "[a-zA-Z]{6,12}" , "phone" => "1\d{10}","id" => "\d+"], # 参数匹配
+                ],
+        ]
+
+
+    ● 路由绑定模型（三种方式）：
+        ① 单参数(id)
+            Route::rule("hi/:id","IFly/index/index",['bind_model' => ['user' => 'app\IFly\Model\User']],['id'=>'\d+']);
+
+            # 如上，当在IFly/index/index()中返回 ：Request()->user，即可以查询 app\IFLy\Model\User模型 where id = :id 的模型数据了，因为`user`上绑定了Model数据。
+
+        ② 多参数
+            Route::rule("hi/:id/:name","IFly/Index/Index",['bind_model' => ['user' => ['IFly/Index/Index','id&name']]],['id'=>'\d+','name'=>'\w+']);
+
+            # 绑定了多个参数，where `id` = :id And `name` = :name
+
+        ③ 闭包
+            Route::rule('hi/:id/:name',"IFly/Index/Index",['ext' => 'jsp','bind_model' => function($where){
+                $model = new \app\IFly\Model\User;
+                $data = $model->where($where)->find(); # 比如：只有一个参数id=1，则$where = ['id' => 1]，两个参数 id=1,name='cc',则$where = ['id' => 1,'name' => 'cc']
+                return $data;
+            }],['id'=>'\d+','name'=>'\w+']);
+
+
+    ● 资源路由：
+        ① 数组定义方式：
+            [
+                "__rest__" =>
+                [
+                    "FlyRecourse" =>    # 路由名称
+                        [
+                            "app\IFly\recourse\FlyRet",     # 地址
+                            [
+                                "only" => ['index','create','save','delete','update','read','edit'], # 允许哪些请求
+                                "except" => [], # 禁止哪些请求
+                                "var" => ['FlyRet' => 'id'],
+                            ]
+                        ],
+                ],
+            ]
+        ② 函数定义方式：
+            Route::recourse('FlyRecourse',['app\IFly\recourse\FlyRet',['only' => [...],'except' => [...],'var' => [...]]]);
+
+            * 资源路由：如下会自动注册7个路由规则
+            *     标识       请求类型      路由规则                对应操作方法（默认，可更改）
+              ▶  index   |    GET    |   recourse            |  index           资源列表首页
+              ▶  create  |    GET    |   recourse            |  create          创建新资源
+              ▶  save    |    POST   |   recourse/:id        |  save            提交保存新资源
+              ▶  delete  |    DELETE |   recourse/:id        |  delete          根据id删除资源
+              ▶  update  |    PUT    |   recourse/:id        |  update          根据id更新资源
+              ▶  read    |    GET    |   recourse/:id        |  read            根据id读取资源
+              ▶  index   |    GET    |   recourse/:id/edit   |  edit            访问edit编辑页面
+
+
+    ● MISS路由：
+        # 当路由访问失败时跳转< ★：如果配置了，则会开启强路由模式 >
+
+        [
+            "__miss__" => "Index/Index/miss",
+        ]
+
+▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂
+▎                                                       二. 控制器                                                       ▎
+▎▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▆▆▆▆▆▆▆▆▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▎
+
+    ● _initialize()：
+        # 初始化方法
+            条件：当某个类继承了\think\Controller类， public function _initialize(){....}。
+            注意：_initialize()方法会先于类的构造方法__construct()方法执行。
+
+    ● protect $beforeActionList = [] ,前置方法属性：
+        # 可以在类的属性中定义，会在访问方法前前置执行。
+            protect $beforeActionList =
+                [
+                    "demo", # 所有方法都会执行
+                    "demo1" => ['only' => 'foo'],   # 只有访问foo的时候才执行demo1
+                    "demo2" => ['except' => 'bar'], # 排除bar执行demo2
+                ];
+
+        执行顺序：_initialize() -> 前置方法 -> __construct()
+
+    ● 空操作：
+        # 当访问类中不存在的方法时候，（不需要继承\think\Controller基类）,如果定义了 public _empty($name){...},就好执行改方法并传入不存在的方法名为$name参数
+
+        Class City
+        {
+            public function _empty($name)
+            {
+                return $this->showCity($name);
+            }
+
+            //注意 showCity方法 本身是 protected 方法 （但是public也可以）
+             protected function showCity($name)
+                {
+                    //和$name这个城市相关的处理
+                    return '当前城市' . $name;
+                }
+        }
+
+     ● 空控制器：
+        # 当访问不存在的控制的时候，系统会默认访问config.php中配置的 "empty_controller" => 'Error',（也可以自定义，支付多层定义，如：ep.Error | ep\Error | ep/Error）,
+        # 这个时候只要定义默认控制器中的默认执行访问index()就可以了。
+
+
+▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂
+▎                                                       三. 请求                                                         ▎
+▎▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▆▆▆▆▆▆▆▆▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▎
+
+   ● 方法	            描述
+     param	            获取当前请求的变量
+     get	            获取 $_GET 变量
+     post	            获取 $_POST 变量
+     put	            获取 PUT 变量
+     delete	            获取 DELETE 变量
+     session	        获取 $_SESSION 变量
+     cookie	            获取 $_COOKIE 变量
+     request	        获取 $_REQUEST 变量
+     server	            获取 $_SERVER 变量
+     env	            获取 $_ENV 变量
+     route	            获取 路由（包括PATHINFO） 变量
+     file	            获取 $_FILES 变量
+
+   ● 变量修饰符：
+
+        s          $this->request->param('name/s')          强制转换为字符串
+        d          $this->request->param('u_id/d')          强制转换为数字
+        b          $this->request->param('is_m/b')          强制转换为布尔值
+        a          $this->request->param('gits/a')          强制转换为数组
+        f          $this->request->param('fee/f')           强制转换为浮点型
+
+
+▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂
+▎                                                       四. 数据库                                                       ▎
+▎▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▆▆▆▆▆▆▆▆▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▎
+
+    ● 连接：
+        'type' => 'mysql'
+            # 表示：参数支持命名空间完整定义，不带命名空间定义的话，默认采用\think\db\connector作为命名空间，如果使用应用自己扩展的数据库驱动，可以配置为`\Org\db\Mysql`
+                    表示数据库的连接器采用 \org\db\Mysql类作为数据库连接驱动，而不是默认的\think\db\connector\Mysql。
+
+
+    ● 方法配置：
+        我们可以在调用Db类的时候动态定义连接信息，例如：
+
+        Db::connect([
+            // 数据库类型
+            'type'        => 'mysql',
+            // 数据库连接DSN配置
+            'dsn'         => '',
+            // 服务器地址
+            'hostname'    => '127.0.0.1',
+            // 数据库名
+            'database'    => 'thinkphp',
+            // 数据库用户名
+            'username'    => 'root',
+            // 数据库密码
+            'password'    => '',
+            // 数据库连接端口
+            'hostport'    => '',
+            // 数据库连接参数
+            'params'      => [],
+            // 数据库编码默认采用utf8
+            'charset'     => 'utf8',
+            // 数据库表前缀
+            'prefix'      => 'think_',
+        ]);
+
+        或者使用字符串方式：
+            Db::connect('mysql://root:1234@127.0.0.1:3306/thinkphp#utf8'); # 格式为：数据库类型://用户名:密码@数据库地址:数据库端口/数据库名#字符集
+
+        注：以上方式可能不支持前缀和连接参数。
+
+        也可以额外配置连接：
+
+             //数据库配置1
+             'db_config1' => [
+                 // 数据库类型
+                 'type'        => 'mysql',
+                 // 服务器地址
+                 'hostname'    => '127.0.0.1',
+                 // 数据库名
+                 'database'    => 'thinkphp',
+                 // 数据库用户名
+                 'username'    => 'root',
+                 // 数据库密码
+                 'password'    => '',
+                 // 数据库编码默认采用utf8
+                 'charset'     => 'utf8',
+                 // 数据库表前缀
+                 'prefix'      => 'think_',
+             ],
+             //数据库配置2
+             'db_config2' => 'mysql://root:1234@localhost:3306/thinkphp#utf8';
+
+        改成：
+            Db::connect('db_config1');
+            Db::connect('db_config2');
+
+        也可以在定义的模型中更改连接信息，即更改 protect $connection = [...]  or 'db_config1';
+
+
+    ● 基本使用：
+        ▶ 常规方式：
+            Db::query('select * from think_user where id= 1');
+            Db::execute('insert into think_user (id, name) values (1, "lily")');
+
+        ▶ 参数绑定：
+            Db::query('select * from think_user where id=?',[8]);
+            Db::execute('insert into think_user (id, name) values (?, ?)',[8,'thinkphp']);
+
+        ▶ 命名占位符绑定：
+            Db::query('select * from think_user where id=:id',['id'=>8]);
+            Db::execute('insert into think_user (id, name) values (:id, :name)',['id'=>8,'name'=>'thinkphp']);
+
+        ▶ 重新连接：
+            Db::connect($config)->query('select * from think_user where id=:id',['id'=>8]);
+
+
+    ● 查询构造器：
+        ▶ 基本查询：
+            Db::table('think_user')->where('status',1)->select(); # table方法必须指定完整的数据表名
+            Db::name('user')->where('status',1)->select();  # name方法支持前缀表名 think_
+
+        ▶ 主从查询：
+            # 如果你使用了分布式数据库，那么默认情况下查询操作都是在从数据库中进行，如果你在一些特殊的情况下需要从主库读取数据，可以使用：
+            Db::name('user')->master()->where('id',1)->find();
+
+            支持一旦某个表写入了数据，那么当前请求的后续查询操作都可以自动从主库读取。
+            你需要在数据库配置文件中增加下面的配置参数：
+            // 从主库读取数据
+            'read_master'	=>	true,
+
+        ▶ Query对象或闭包查询：
+            $query = new \think\db\Query();
+            $query->table('think_user')->where('status',1);
+            Db::find($query);
+
+            或者闭包
+
+            Db::select(function($query){
+                 $query->table('think_user')->where('status',1);
+               });
+
+        ▶ 值和列查询：
+            # 查询某个字段的值
+                DB::table("think_user")->where('id',1)->value('name',$default,$force = false <是否强转为数字>); # 如果查询不存在返回null
+
+                DB::table("think_user")-where('age','gt',18)->column('name / name,age / name,age,team');
+                # 一个字段：返回一维数组
+                # 两个字段：返回第一个字段为 field1 => field2 的一维数组
+                # 多个字段：返回 field1 => [ field1,field2,...field999...]的二维数组
+
+        ▶ 多条件查询：
+             ● AND
+                # 跟一个where()差不多，一个where()可能传的是多维数组，这种是多个where()
+                Db::table('think_user')->where('name','cc')
+                    ->where('age','gt',18)
+                    ->select();
+
+                多字段相同条件的AND查询可以简化为如下方式：
+                Db::table('think_user')
+                    ->where('name&title','like','%thinkphp')
+                    ->find();
+
+
+             ● whereOR
+                Db::table('think_user')->where('name','like','%cc')
+                    ->whereOr('age','gt',18)
+                    ->find();
+
+                # 多字段相同条件的OR
+                Db::table('think_user')->where('name|title','like','%thinkPHP')->find();
+
+             ● 混合查询（where、whereOr）
+                $result = Db::table('think_user')
+                    ->where(function ($query) {
+                            $query->where('id', 1)->whereor('id', 2);
+                        })
+                    ->whereOr(function ($query) {
+                            $query->where('name', 'like', 'think')->whereOr('name', 'like', 'thinkPHP');
+                        })
+                    ->select();
+
+                # 生成sql
+                   SELECT * FROM `think_user` WHERE  (  `id` = 1 OR `id` = 2 ) OR (  `name` LIKE 'think' OR `name` LIKE 'thinkPHP' );
+
+
+        ▶ 数据分批处理：
+            如果你需要处理成千上百条数据库记录，可以考虑使用chunk方法，该方法一次获取结果集的一小块，然后填充每一小块数据到要处理的闭包，该方法在编写处理大量数据库记录的时候非常有用。
+
+            比如，我们可以全部用户表数据进行分批处理，每次处理 100 个用户记录：
+
+            Db::table('think_user')->chunk(100, function($users) {
+                foreach ($users as $user) {
+                    //
+                }
+            });
+            // 或者交给回调方法myUserIterator处理
+            Db::table('think_user')->chunk(100, 'myUserIterator');
+            你可以通过从闭包函数中返回false来中止对数据集的处理：
+
+            Db::table('think_user')->chunk(100, function($users) {
+                // 处理结果集...
+                return false;
+            });
+            也支持在chunk方法之前调用其它的查询方法，例如：
+
+            Db::table('think_user')->where('score','>',80)->chunk(100, function($users) {
+                foreach ($users as $user) {
+                    //
+                }
+            });
+            chunk方法的处理默认是根据主键查询，支持指定字段，例如：
+
+            Db::table('think_user')->chunk(100, function($users) {
+                // 处理结果集...
+                return false;
+            },'create_time');
+            V5.0.11版本开始，chunk方法支持指定处理数据的顺序。
+
+            Db::table('think_user')->chunk(100, function($users) {
+                // 处理结果集...
+                return false;
+            },'create_time', 'desc');
+
+
+    ● 添加数据：
+        Db::table('think_user')->insert(['id' => 1,'name' => 'cc']);
+        $lastId = Db::name('user')->getLastInsID();
+
+        或者直接使用insertGetId方法新增数据并返回主键值：
+
+        $lastId = Db::name('user')->insertGetId($data); # nsertGetId 方法添加数据成功返回添加数据的自增主键
+
+        多条：
+            $data = [
+                ['foo' => 'bar', 'bar' => 'foo'],
+                ['foo' => 'bar1', 'bar' => 'foo1'],
+                ['foo' => 'bar2', 'bar' => 'foo2']
+            ];
+            Db::name('user')->insertAll($data);
+
+    ● 更新数据：
+        # update 方法返回影响数据的条数，没修改任何数据返回 0
+
+        Db::table('think_user')->where('id', 1)->update(['name' => 'thinkphp']);
+        如果数据中包含主键，可以直接使用：
+        Db::table('think_user')->update(['name' => 'thinkphp','id'=>1]);
+
+        ▶ 使用函数：
+            如果要更新的数据需要使用SQL函数或者其它字段，可以使用下面的方式：
+
+            Db::table('think_user')
+                ->where('id', 1)
+                ->update([
+                    'login_time'  => ['exp','now()'],
+                    'login_times' => ['exp','login_times+1'],
+                ]);
+            V5.0.18+版本开始是数组中使用exp查询和更新的话，必须改成下面的方式：
+
+            Db::table('think_user')
+                ->where('id', 1)
+                ->update([
+                    'login_time'  => Db::raw('now()'),
+                    'login_times' => Db::raw('login_times+1'),
+                ]);
+
+        更新某个字段的值：
+            Db::table('think_user')->where('id',1)->setField('name', 'thinkphp');
+
+        ▶ 自增减：
+            Db::table('think_user')->where('id',1)->setInc('login_times',5);
+            Db::table('think_user')->where('id',1)->setDec('score');   # 默认减（加）1
+
+        ▶ 综合写法：
+            Db::table('think_user')
+                ->where('id',1)
+                ->inc('age')
+                ->dec('score',5)
+                ->exp('create_time','NOW()')
+                ->update();
+
+    ● 删除数据：
+        Db::table('think_user')->where('name','cc')->delete(); # 条件删除
+        DB::table('think_user')->delete(1); # 主键删除
+        Db::table('think_user')->delete([1,2,3...]);
+
+    ● getTableInfo：
+        # 使用getTableInfo可以获取表信息，信息类型 包括 fields,type,bind,pk，以数组的形式展示，可以指定某个信息进行获取:
+
+        Db::getTableInfo('think_user'); // 获取`think_user`表所有信息
+        Db::getTableInfo('think_user', 'fields'); // 获取`think_user`表所有字段
+        Db::getTableInfo('think_user', 'type'); // 获取`think_user`表所有字段的类型
+        Db::getTableInfo('think_user', 'pk');     // 获取`think_user`表的主键
+
+    ● 查询表达式：
+        where('name','like',['%think','php%'],'OR') # where (`name` like '%think' OR `name` like 'php%')
+
+        ◆ [NOT] NULL
+            where('name',null)
+            where('name','null')
+            where('name','not null')
+
+            如果需要判断字符串 'null' / 'not null'，则：
+
+            where('name','=','null')
+            where('name','=','not null')
+
+        ◆ exp
+            where('id','IN','1,2,3')  改为  where('id','exp','IN(1,2,3)')
+
+    ● alias：
+        Db::table('think_user')->alias('a')->join('__DEPT__ b','b.user_id = a.id')->select(); #  select * from `think_user` as a inner join think_dept on b.user_id = a.id;
+
+        Db::table('think_user')
+            ->alias('think_user' => 'a','think_dept' => 'b')
+            ->join('think_dept','a.user_id = b.id')
+            ->select();
+
+    ● distinct：
+        Db::table('think_user')->distinct(true)->field('user_login')->select(); # select distinct user_login from think_user;
+
+    ● cache：
+        # 查询缓存：
+           cache可以用于select、find、value和column方法，以及其衍生方法，使用cache方法后，在缓存有效期之内不会再次进行数据库查询操作，
+           而是直接获取缓存中的数据，关于数据缓存的类型和设置可以参考缓存部分。
+           第一次查询的结果会被缓存，再次查询就直接在缓存中返回内容，不再进行二次查询，如：
+
+           Db::table('think_user')->cache(true)->find();
+           Db::table('think_user')->cache(true,60)->find();  # 等效于 Db::table('think_user')->cache(60)->find();
+
+           ◆ 指定缓存标识
+                Db::table('think_user')->cache('demoKey',60)->find();
+                可用\think\Cache::get('demoKey')取出。
+
+                cache方法支持设置缓存标签：
+                   Db::table('think_user')->cache('key',60,'tagName')->find();
+
+           ◆ 缓存自动更新
+                # 这里的缓存自动更新是指一旦数据更新或者删除后会自动清理缓存（下次获取的时候会自动重新缓存）。
+                  当你删除或者更新数据的时候，可以使用cache方法手动更新（清除）缓存，例如：
+
+                Db::table('think_user')->cache('user_data')->select([1,3,5]);
+                Db::table('think_user')->cache('user_data')->update(['id'=>1,'name'=>'thinkphp']);
+                Db::table('think_user')->cache('user_data')->select([1,5]);
+
+                如果使用find方法并且使用主键查询的情况，不需要指定缓存标识，会自动清理缓存，例如：
+
+                Db::table('think_user')->cache(true)->find(1);
+                Db::table('think_user')->update(['id'=>1,'name'=>'thinkphp']);
+                Db::table('think_user')->cache(true)->find(1);
+                最后查询的数据会是更新后的数据。
+
+
+    ● fetchSql：
+        # 用于返回SQL语句而不是直接执行
+            $result = Db::table('think_user')->fetchSql(true)->find(1);
+            输出$result为： select * from think_user where id = 1;
+
+    ● force：
+        # 用于强制使用索引
+            Db::table('think_user')->force('user')->select();  // 对查询强制使用user索引，user必须是数据表实际创建的索引名称。
+
+    ● partition：【水平分表】
+        partition($data,$field,$rule)
+        // array  $data 分表字段的数据
+        // string $field 分表的数据库字段 （即：分表依据哪个字段的值来分）
+        // array  $rule 分表规则
+
+        ★ 注意：不要使用任何 SQL 语句中会出现的关键字当表名、字段名，例如 order 等。会导致数据模型拼装 SQL 语句语法错误。
+
+        // 用于写入
+        $data = [
+            'user_id'   => 110,
+            'user_name' => 'think'
+        ];
+
+        $rule = [
+            'type' => 'mod', // 分表方式
+            'num'  => 10     // 分表数量
+        ];
+
+        Db::name('log')
+            ->partition(['user_id' => 110], "user_id", $rule)
+            ->insert($data);
+
+    ● 聚合查询：
+        方法      	说明
+        count	    统计数量，参数是要统计的字段名（可选）      $db->...->count()
+        max	        获取最大值，参数是要统计的字段名（必须）    $db->...->max('score');
+        min     	获取最小值，参数是要统计的字段名（必须）    $db->...->min('score');
+        avg	        获取平均值，参数是要统计的字段名（必须）    $db->...->avg('score');
+        sum	        获取总分，参数是要统计的字段名（必须）      $db->...->max('sum');
+
+    ● 时间查询:
+        ▶ where
+            where('create_time','> time','2019-01-10');
+            where('create_time','< time','2019-01-10');
+            where('create_time','between time',['2019-01-01','2019-01-10']);
+            where('create_time','not between time',['2019-01-01','2019-01-10']);
+
+        ▶ whereTime
+            whereTime('birthday','>','2019-01-10');
+            whereTime('birthday','<=','2019-01-10');
+            whereTime('birthday','between',['2019-01-01','2019-01-10']);
+            whereTime('birthday','not between',['2019-01-01','2019-01-10']);
+
+            whereTime('create_time','today');
+            whereTime('create_time','yesterday');
+            whereTime('create_time','week');
+            whereTime('create_time','last week');
+            whereTime('create_time','month');
+            whereTime('create_time','last month');
+            whereTime('create_time','year');
+            whereTime('create_time','last year');
+
+            whereTime('create_time','d');
+            whereTime('create_time','w');
+            whereTime('create_time','m');
+            whereTime('create_time','y');
+
+            whereTime('create_time','-2 hours');
+
+    ● 视图查询:
+        # 可以实现不依赖数据库视图的多表查询，并不需要数据库支持视图，如：
+        Db::View('User','id,name')
+            ->View('Profile','trueName,phone,email','Profile.user_id=User.id')
+            ->View('Score','score','Score.user_id=Profile.id')
+            ->where('score','>',80)
+            ->select();
+
+        生成SQL：
+
+            SELECT User.id,User.name,Profile.truename,Profile.phone,Profile.email,Score.score FROM
+            think_user User INNER JOIN think_profile Profile ON Profile.user_id=User.id
+            INNER JOIN think_socre Score ON Score.user_id=Profile.id WHERE Score.score > 80;
+
+    ● 子查询:
+        # 当select(false)的时候，只返回构建的SQL，不进行查询
+        $subQuery = Db::table('think_user')->where('id',1)->select(false); # 效果同 fetchSql(true)
+
+        ▶ 构建子查询
+            $subQuery = Db::name('user')->where('id',1)->buildSql(); # 返回：(select * from user where id = 1)
+            调用buildSql方法后不会进行实际的查询操作，而只是生成该次查询的SQL语句（为了避免混淆，会在SQL两边加上括号），然后我们直接在后续的查询中直接调用。
+            使用：
+                Db::table($subQuery . ' a')
+                    ->where('a.name','like','cc')
+                    ->select();
+
+        ▶ 闭包构建子查询
+            Db::table('think_user')
+            ->where('id','IN',function($query){
+                $query->table('think_profile')->where('status',1)->field('id');
+            })
+            ->select()
+
+            sql:   SELECT * FROM `think_user` WHERE `id` IN ( SELECT `id` FROM `think_profile` WHERE `status` = 1 );
+
+            Db::table('think_user')
+            ->where(function($query){
+                $query->table('think_profile')->where('status',1);
+            },'exists')
+            ->find();
+
+            sql:    select * from think_user where exists ( select * from think_profile where status = 1 );
+
+
+    ● 原生查询:
+        Db::query(...);
+        Db::execute(...);
+
+
+    ● 查询时间:
+       事件	                描述
+       before_select	    select查询前回调
+       before_find	        find查询前回调
+       after_insert	        insert操作成功后回调
+       after_update	        update操作成功后回调
+       after_delete	        delete操作成功后回调
+
+       ▶ 时间注册
+
+              Query::event('after_insert','callback');
+              Query::event('before_select',function($options,$query){
+              	// 事件处理
+                  return $result;
+              });
+
+    ● 事务:
+        Db::transaction(function(){
+            Db::table('think_user')->find(1);
+                Db::table('think_user')->delete(1);
+        });
+
+        Db::startTrans();
+        ...
+        Db::commit() / Db::rollback();
+
+    ● 监听SQL:
+         Db::listen(function($sql, $time, $explain){
+             // 记录SQL
+             echo $sql. ' ['.$time.'s]';
+             // 查看性能分析结果
+             dump($explain);
+         });
+
+        listen方法增加master参数用于标记当前的主从查询。
+
+        Db::listen(function ($sql, $time, $explain, $master) {
+            // 记录SQL
+            echo $sql . ' [' . $time . 's] ' . ($master ? 'master' : 'slave');
+            // 查看性能分析结果
+            dump($explain);
+        });
+
+
+
+
+

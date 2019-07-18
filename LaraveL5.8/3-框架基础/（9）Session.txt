@@ -1,0 +1,183 @@
+1.简介
+	备注：Laravel没有使用PHP内置的Session功能，核心逻辑在Illuminate\Session\Middleware\StartSession中间件中，因此不能在Laravel应用中使用$_SESSION方式去获取Session值。另外，Laravel的控制器构造函数中无法获取应用Session数据，因为
+		  Laravel的Session是通过StartSession中间件启动，中间件是在服务容器注册所有服务后执行，而控制器们的构造函数都是在服务容器注册服务时执行的，这个时候Session尚未启动，故无法获取Session数据。
+
+2.配置
+	Session的配置位于config/session.php。默认Laravel的Session驱动为file。但是在生成环境中，可能会需要memcached或redis一遍获取更佳的Session性能，尤其是线上同一个应用部署到多台机器的时候。
+	Session驱动用于定义请求的Session数据存放位置，有多种驱动：
+		● file 	  			—— Session数据存储在storage/framework/sessions目录下；
+		● cookie  			—— Session数据存储在经过安全加密的Cookie中；
+		● database			—— Session数据存储在数据库中；
+		● memcached / redis —— Session数据存储在Memcached/Redis缓存中，访问速度快；
+		● array				—— Session数据存储在简单的PHP数组中，在多个请求之间是非持久化的；
+	注：数组驱动通常用于运行测试，以免Session数据持久化。	
+
+3.驱动预备知识
+	◆ 数据库
+		当使用database作为Session驱动时，需要设置表包含Session字段，表结构声明如下：
+			Scheme::create('sessions',function($table){
+				$table->string('id')->unique();
+				$table->unsignedInteger('user_id')->nullable();
+				$table->string('ip_address',45)->nullable();
+				$table->text('user_agent')->nullable();
+				$table->text('payload');
+				$table->integer('last_activity');
+			});
+			
+			可使用Artisan命令 session:table 在数据库中创建这张表：
+			$ php artisan session:table
+			$ php artisan migrate
+	◆ Redis
+		在Laravel中使用redis作为Session驱动前，需要通过Composer安装predis/predis包。database配置文件中配置Redis连接，在Session配置中，connection选项用于指定Session使用哪一个Redis连接。
+		例如，在config/database.php中为Redis配置一个Session连接：
+		'redis' =>[
+            'client'    => 'predis',
+            'default'   => [
+                'host'      => env('REDIS_HOST','127.0.0.1'),
+                'password'  => env('REDIS_PASSWORD',null),
+                'port'      => env('REDIS_PORT',null),
+                'database'  => 0,
+            ],
+
+            'session'   => [
+                'host'      => env('SESS_REDIS_HOST','127.0.0.1'),
+                'password'  => env('SESS_REDIS_PASSWORD',null),
+                'port'      => env('SESS_REDIS_PORT',6379),
+                'database'  => 0,
+            ]
+        ],
+		
+		然后在config/session.php中配置Session驱动redis，对应的connection项指向database中的redis.session配置：
+		'driver'  => env('SESSION_DRIVER','file'),
+		'connect' => 'session',
+		注：SESSION_DRIVER=redis在.env中的设置。
+		
+4.使用Session
+	◆ 获取数据
+		在Laravel中主要有两种处理Session数据的方式：1、全局辅助函数session(); 2、Request实例（启动过程中会将Session数据设置到请求实例的session属性中）。
+		● Request实例
+			$value = $request->session()->get('key','default');
+			$value = $request->session()->get('key',function(){
+				return "default";
+			});
+		● 全局辅助函数session()
+			如果只传一个参数，则返回该Session键对应的值；如果传的参数是key=>value的数组键值对，则将数据保存到Session中。
+			// 取session数据
+			$value = session('key');
+			$value = session('key','default');
+			$value = session()->get('key','default');
+			// 存session数据
+			session(['key' => 'value']);
+			
+			注：通过HTTP请求实例和辅助函数session处理数据并无实质性差别，两种方法都可以通过assertSessionHas方法进行测试。
+		● 获取全部Session数据
+			$data = $request->session()->all();
+			$data = request()->all();
+		● 判断session是否存在
+			$request->session()->has('key')		—— 存在且不为null返回true
+			$request->session()->exists('key')	—— 存在就返回true
+	◆ 存储数据
+		要在Session中存储数据，通常可以通过put方法或者session辅助函数：
+		// 通过请求实例的put()方法
+		$request->session()->put('key','value');
+		//全局辅助函数
+		session(['key' => 'value']);
+		
+		● 推送数据到数组Session
+			push()方法用于将数据推送到值为数组的Session，例如，如果user.teams键包含团队名数组：
+			$request->session()->push('user.teams','developers');  //与put()方法不同的是put()方法是存储单一的key形式
+			如：
+				$request->session()->push('user.teams','湖人');
+			结果为：
+				session['user']['teams'] = ['湖人']
+			
+		● 获取并删除数据
+			$value = $request->session()->pull('key','default'); //从Session中获取并删除数据
+	◆ 一次性数据
+		有时想要Session中存储只在下个请求中有效的数据，可通过flash()方法来实现。使用该方法存储Session数据只在随后的HTTP请求中有效，然后将会被删除：
+		$request->session()->flash('status','登录成功！');
+		若想在更多请求中保持一次性数据，可使用reflash()方法，该方法将会一次性数据保留到下一个请求，如果你只是想要保持特定一次性数据，可使用keep()方法：
+		$request->session()->reflash();
+		$request->session()->keep(['username','email']);
+		● $request->session()->flash() : 闪存，保存一次性数据，读完即毁。
+		● $request->session()->reflash() : 刷新闪存，将所有的闪存数据，重新存储一次，保持有效性到下一次请求。
+		● $request->session()->keep(['xxx'...]); : 刷新闪存，同上，只不过只刷新部分选定的key到下一次请求。
+	◆ 删除数据	
+		● $request->session()->flush() : 删除全部的session数据
+		● $request->session()->forget('key') : 删除单个key
+		● $request->session()->forget(['key1','key2'...]) : 删除多个key
+	◆ 重新生成session ID
+		如果使用内置的LoginController，则Laravel会在认证期间自动重新生成Session ID，如果需要手动生成，则使用regenerate()方法：
+		● $request->session()->regenerate();
+		● $request->session()->regenerateToken():
+		由于Session的格式如下：
+			[
+				"_previous" => [
+					"url" => "http://demo.com/xxx",
+				],
+				"_flash" => [
+					"old" => [],
+					"new" => [],
+				],
+				"_token" => "xxxxxxxxx...",
+			]
+			
+5.添加自定义驱动
+	◆ 实现驱动
+		自定义驱动需要实现SessionHandlerInterface接口，该方法包含一些需要实现的方法，例如：
+		注：Laravel默认没有附带的包括展目录，故自定义一个Extensions目录，位于app/之下
+		<?php	
+			namespace App\Extensions;
+			
+			class MongoSessionHandler implements SessionHandlerInterface
+			{
+				public function open($savePath, $sessionName) {}
+				public function close() {}
+				public function read($sessionId) {}
+				public function write($sessionId, $data) {}
+				public function destroy($sessionId) {}
+				public function gc($lifetime) {}
+			}
+		方法简介：
+			● open()，用于基于文件的Session存储系统，由于Laravel已经有了一个file的Session驱动，所以改方法中不需要任何代码，可置空方法。
+			● close()，和open()方法一样，也可以忽略，对大多数驱动而言都用不到该方法。
+			● read()，返回与给定$sessionId相匹配的Session数据的字符串版本,从驱动中获取或存储Session数据不需要做任何序列化或其他编码，因为Laravel已经处理过了。
+			● write()，将给定$data写到持久化存储系统相应的$sessionId,例如MongoDB，Dynamo等等。需要任何序列化，Laravel已经自带。
+			● destroy()，从持久化存储中移除$sessionId对应的数据。
+			● gr(),销毁大于给定$lifetime的所有Session数据，对本身拥有过期机制的系统，如Memcached、Redis而言，该方法可为空。
+	◆ 注册驱动
+		Session驱动被实现后，需要将其注册到框架，要添加额外驱动到Laravel Session后端，可使用Session 门面上的extend方法。我们在某个服务提供者如AppServiceProvider的boot()方法中调用该方法（也可自定义一个新的服务提供者）：
+		<?php
+			namespace App\Providers;
+			
+			use App\Extensions\MongoSessionHandler;
+			use Illuminate\Support\Facades\Session;
+			use Illiminate\Support\ServiceProvider;
+			
+			class SessionServiceProvider extends ServiceProvider
+			{
+				 /**
+					* Perform post-registration booting of services.
+					*
+					* @return void
+				*/
+				public function boot()
+				{
+					Session::extend('mongo',function($app){
+						// Return Implementation of SessionHandlerInterface...
+						return new MongoSessionHandler;
+					});
+				}
+				
+				/**
+					* Register bindings in the container.
+					*
+					* @return void
+				*/
+				public function register()
+				{
+					//
+				}
+			}
+		★ Session驱动被注册之后，就可以在配置文件config/session.php中使用mongo驱动了。
+		

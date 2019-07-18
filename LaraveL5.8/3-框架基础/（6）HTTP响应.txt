@@ -48,6 +48,9 @@
 			Route::get('dashboard',function(){
 				return redirect('home/dashboard');
 			});
+			Route::get('test',function(){
+				return redirect()->route('test-response'); // 这里的test-response需要进行路由命名，如：Route::......->name("test-response");
+			});
 			
 			有事需要将用户重定向到上一个请求，如表单验证不通过，可使用back()函数（由于该功能使用了Session，使用back()方法之前确保相关路由位于web中间件或者应用了Session中间件）：
 			Route::post('user/profile',function(){

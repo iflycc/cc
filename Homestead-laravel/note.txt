@@ -1,0 +1,23 @@
+▆ Ubuntu 18.04安装vagrant & VirtualBox
+    # apt install virtualbox -y
+    # wget -c https://releases.hashicorp.com/vagrant/2.0.3/vagrant_2.0.3_x86_64.deb     —— 这里要自行搜索最高版本进行安装
+    # dpkg -i vagrant_2.0.3_x86_64.deb
+    # vagrant plugin install vagrant-vbguest
+
+
+▆ 运行上述命令有可能报错：
+
+    Check your Homestead.yaml file, the path to your private key does not exist.
+    解决办法如下：
+
+    ssh-keygen -t rsa -b 4096 -C "your_email@example.com"  —— 填一个自己的git邮箱用户名
+    eval "$(ssh-agent -s)"                                 —— 不用起名字，直接回车，会自动生成 ~/.ssh/id_rsa  ~/.ssh/id_rsa.pub 两个文件（密码2次输入一直即可）
+    ssh-add -K ~/.ssh/id_rsa
+
+
+
+
+▽ ubuntu查看版本号：    lsb_release -a
+▽ win7安装Vagrant：    https://jingyan.baidu.com/article/48a42057fe2195a924250433.html
+▽ Ubuntu安装Vagrant：  https://blog.csdn.net/lgyaxx/article/details/78212163
+▽ virtualBox下载地址： https://vagrantcloud.com/laravel/boxes/homestead/versions/8.0.0-alpha2/providers/virtualbox.box

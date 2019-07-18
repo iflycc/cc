@@ -1,0 +1,93 @@
+1.读写分离
+	◆ 配置项
+		'mysql' => [
+			//ticky 项是一个可选的配置值，可用于在当前请求生命周期内允许立即读取写入数据库的记录。如果 sticky 选项被启用并且一个"写"操作在当前生命周期内发生，则后续所有"读"操作都会使用这个"写"连接（前提是同一个请求生命周期内），这样就可以确保同一个请求生命周期内写入的数据都可以立即被读取到，从而避免主从延迟导致的数据不一致，是否启用这一功能取决于你。
+			'sticky' => true, // 
+		
+			'read' => [
+				'host' => '192.168.1.1' / [['193.168.1.1', '194.168.1.1']],  // 读分离支持多个连接IP
+			],
+			'write' => [
+				'host' => '196.168.1.2'  // 写分离目前只支持单个连接
+			],
+	
+			'driver'    => 'mysql',
+			'database'  => 'database',
+			'username'  => 'root',
+			'password'  => '',
+			'charset' => 'utf8mb4',
+			'collation' => 'utf8mb4_unicode_ci',
+			'prefix'    => '',
+		],
+		
+2.使用不同的连接
+	◆ 门面DB的connection()方法进行不同的连接：
+		● $users = DB::select(....); —— 常规连接，其实可理解为 DB::connection('mysql')->select(...); 只不过默认的‘mysql’被省略了
+		● $users = DB::connection("mysql::read")->select(...); // 指定连接数据库和连接名，连接读数据库，使用`::`分隔
+		● $pdo = DB::connection('read')->getPdo(); // 使用连接实例上的getPdo()方法访问底层PDO实例
+	◆ 原生SQL
+		● select() —— $users = DB::select('select * from users where active = ?', [1]); //占位符 ? ，查询返回PHP stdClass对象
+		● 使用命名绑定
+			$results = DB::select("select * from users where id = :id",['id' => 1]);
+		● insert()
+			> DB::insert("insert into users (id,name) values (?,?)",[1,'学院君']);
+			> DB::insert("insert into users (id,name) values (:id,:name)",["id" => 1,'name' => '学院君']);
+		● delete()
+			DB::delete('delete from user where id = 1');
+		● 运行通用语句
+			DB::statement("drop table users");
+
+3.监听查询事件
+	如果想获取每次SQL语句的执行，可使用listen()方法，该方法对查询日志和调试非常有用，可在服务提供者中注册查询监听器：
+		<?php
+
+		namespace App\Providers;
+
+		use Illuminate\Support\Facades\DB;
+		use Illuminate\Support\ServiceProvider;
+
+		class AppServiceProvider extends ServiceProvider
+		{
+			/**
+			 * Bootstrap any application services.
+			 *
+			 * @return void
+			 */
+			public function boot()
+			{
+				DB::listen(function ($query) {
+					// $query->sql
+					// $query->bindings
+					// $query->time
+				});
+			}
+
+			/**
+			 * Register the service provider.
+			 *
+			 * @return void
+			 */
+			public function register()
+			{
+				//
+			}
+		}
+		
+4.事务
+	要在数据库中运行一连串操作，可使用DB门面上的transaction()方法，如果事务闭包异常，则事务自动回滚，如果执行成功，事务自动提交：
+	◆ 事务闭包
+		DB::transaction(function(){
+			 DB::table('users')->update(['votes' => 1]);
+			DB::table('posts')->delete();
+		});
+	◆ 手动使用事务
+		● 开启事务 —— DB::beginTransaction(); 
+		● 回滚事务 —— DB::rollBack();
+		● 提交事务 —— DB::commit();
+	◆ 处理死锁
+		数据库死锁指的是有两个或两个以上数据库操作相互依赖，一方需要等待另一方退出才能获取资源，但是没有一方提前退出，就会造成死锁，数据库事务容易造成的一个副作用就是死锁。为此 transaction 方法接收一个可选参数作为第二个参数，用于定义死锁发生时事务的最大重试次数。如果尝试次数超出指定值，会抛出异常：
+
+		DB::transaction(function () {
+			DB::table('users')->update(['votes' => 1]);    
+			DB::table('posts')->delete();
+		}, 5);
